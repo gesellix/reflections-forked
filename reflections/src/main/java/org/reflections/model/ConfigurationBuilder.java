@@ -1,75 +1,35 @@
 package org.reflections.model;
 
+import com.google.common.collect.Iterables;
 import org.reflections.helper.ClasspathHelper;
 import static org.reflections.model.ElementTypes.annotations;
-import com.google.common.collect.Iterables;
+
+import java.util.regex.Pattern;
+import static java.util.regex.Pattern.compile;
 
 /**
  * @author mamo
  */
 public enum ConfigurationBuilder {
-    Empty
-            {
-                @Override
-                public Configuration build(Configuration configuration) {
-                    //noinspection EmptyClassInitializer
-                    return new Configuration() {
-                        {}
-                    };
-                }},
-    /**
-     * Default is by default, it's not really deprecated
-     */
-    @Deprecated
     Default
             {
                 @Override
-                @SuppressWarnings({"AssignmentToMethodParameter"})
                 public Configuration build(Configuration configuration) {
-                    configuration = Empty.build(configuration);
                     Annotations.build(configuration);
+                    ExcludeJRE.build(configuration);
 
-                    String callee=null;
-                    for (StackTraceElement stackTraceElement : Iterables.cycle(Thread.currentThread().getStackTrace())) {
-                        final String className = stackTraceElement.getClassName();
-                        if (!className.startsWith("org.reflections") && !className.startsWith("java.lang")
-                                || className.startsWith("org.relflections.tests") /*ugh*/) {
-                            callee = className;
-                            break;
-                        }
-                    }
-
-                    return configuration
-                            .addExcludedFqnsPrefixes("java", "javax", "sun", "com.sun")
-                            .setScanSources(true)
-                            .addUrls(ClasspathHelper.getUrlForClassName(callee));
+                    return configuration;
                 }
             },
-    Runtime
-            {
-                @Override
-                public Configuration build(Configuration configuration) {
-                    return configuration
-                            .setFetchPostCompiledResources(false)
-                            .addUrls(ClasspathHelper.getUrlsForCurrentClasspath());
-                }},
     Development
             {
                 @Override
                 public Configuration build(Configuration configuration) {
                     return configuration
-                            .addUrls(ClasspathHelper.getUrlsForSourcesOnly())
-                            .setScanSources(true);
-                }},
-    Full
-            {
-                @Override
-                public Configuration build(Configuration configuration) {
-                    return configuration
-                            .addElementTypesToScan(ElementTypes.all())
-                            .addInvertedElementTypes(ElementTypes.all())
-                            .setFetchPostCompiledResources(true);
-                }},
+                            .addUrls(ClasspathHelper.getUrlsForSourcesOnly());
+//                            .setScanSources(true);
+                }
+            },
     ////
     PostCompiled
             {
@@ -77,23 +37,43 @@ public enum ConfigurationBuilder {
                 public Configuration build(Configuration configuration) {
                     return configuration
                             .setFetchPostCompiledResources(true);
-                }},
-    PreCompiledAndSources
+                }
+            },
+    ThisUrl
             {
                 @Override
                 public Configuration build(Configuration configuration) {
-                    return configuration
-                            .addUrls(ClasspathHelper.getUrlsForCurrentClasspath())
-                            .setFetchPostCompiledResources(true);
-                }},
+                    String callee = null;
+                    for (StackTraceElement stackTraceElement : Iterables.cycle(Thread.currentThread().getStackTrace())) {
+                        final String className = stackTraceElement.getClassName();
+                        if (!className.startsWith("org.reflections") && !className.startsWith("java.lang")
+                                || className.startsWith("org.reflections.tests") /*sorry about that, this is for test purposes*/)
+                        {
+                            callee = className;
+                            break;
+                        }
+                    }
 
+                    return configuration
+                            .addUrls(ClasspathHelper.getUrlForClassName(callee));
+//                            .setScanSources(true);
+                }
+            },
     ////
     Transitive
             {
                 @Override
                 public Configuration build(Configuration configuration) {
                     return configuration.setComputeTransitiveClosure(true);
-                }},
+                }
+            },
+//    Sources
+//            {
+//                @Override
+//                public Configuration build(Configuration configuration) {
+//                    return configuration.setScanSources(true);
+//                }
+//            },
     Annotations
             {
                 @Override
@@ -102,40 +82,31 @@ public enum ConfigurationBuilder {
                             .addElementTypesToScan(annotations)
                             .addInvertedElementTypes(annotations);
                 }
+            },
+    ExcludeAll
+            {
+                @Override
+                public Configuration build(Configuration configuration) {
+                    return configuration
+                            .addExcludePatterns(Pattern.compile(".*"));
+                }
+            },
+    ExcludeJRE
+            {
+                @Override
+                public Configuration build(Configuration configuration) {
+                    return configuration
+                            .addExcludePatterns(compile("java\\..*"), compile("javax\\..*"), compile("sun\\..*"), compile("com.sun\\..*"));
+                }
             };
-
-    ////
-//    public static class PreCompiled /*implementss Builder*/ {
-//        protected final String preCompiledPattern;
-//
-//        public PreCompiled(String preCompiledPattern) {this.preCompiledPattern = preCompiledPattern;}
-//
-//        public Configuration build(Configuration configuration) {
-//            return configuration
-//                    .addPreCompiledResources(
-//                            ClasspathHelper.getPreCompiledResources(preCompiledPattern));
-//        }
-//    }
-
-//    public static class PreCompiledAndSources extends PreCompiled {
-//        public PreCompiledAndSources(String preCompiledPattern) {
-//            super(preCompiledPattern);
-//        }
-//
-//        public Configuration build(Configuration configuration) {
-//            return configuration
-//                    .addPreCompiledResources(
-//                            ClasspathHelper.getPreCompiledResources(preCompiledPattern))
-//                    .addUrls(ClasspathHelper.getUrlsForSourcesOnly());
-//        }
-//    }
 
     ////
     public abstract Configuration build(Configuration configuration);
 
     public static Configuration build(ConfigurationBuilder... builders) {
         //noinspection deprecation
-        final Configuration configuration = Default.build((Configuration) null);
+        final Configuration configuration = new Configuration() {
+        };
         for (ConfigurationBuilder builder : builders) {
             builder.build(configuration);
         }
@@ -143,3 +114,4 @@ public enum ConfigurationBuilder {
         return configuration;
     }
 }
+

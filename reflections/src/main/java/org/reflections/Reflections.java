@@ -7,13 +7,21 @@ import org.reflections.actors.impl.ClasspathScanner;
 import org.reflections.actors.impl.XmlMarshaller;
 
 import java.util.Collection;
+import java.lang.annotation.Annotation;
 
 /**
  * @author mamo
  */
+
 //todo: make thread safe
-//todo: add benchmark logs
 @SuppressWarnings({"AbstractClassWithoutAbstractMethods"})
+/**
+ * A one-stop-shop for all reflections
+ *
+ * To use it, have Reflections.getInstance().setConfiguration(...) only once in your application, preferably at bootstrap
+ * Than use Reflections.getInstance().getXXX to qurey the metadata
+ *
+ */
 public abstract class Reflections {
     private static Reflections instance;
     private boolean configured;
@@ -54,9 +62,9 @@ public abstract class Reflections {
 
     //
 
+    //todo: create a good query interface, these queries are only temporary
     //todo: don't return string based classMD, if the parameter is Class, the return type should be first class oriented as well
     //todo: don't expose classMD
-    //todo: create a good query interface, this queries are only temporary
     public ClassMD getClassMD(Class<?> aClass) {
         return classpathMD.getClassMD(aClass.getName());
     }
@@ -67,5 +75,12 @@ public abstract class Reflections {
 
     public void save(String destination) {
         new XmlMarshaller(classpathMD).save(destination);
+    }
+
+    //
+    //query api candidate
+    public Collection<String> getClassesAnnotatedWith(Class<? extends Annotation> annotationType) {
+        final String annotationName = annotationType.getName();
+        return classpathMD.getInvertedMD(annotationName);
     }
 }

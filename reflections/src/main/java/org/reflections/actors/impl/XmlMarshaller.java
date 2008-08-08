@@ -3,6 +3,7 @@ package org.reflections.actors.impl;
 import com.thoughtworks.xstream.XStream;
 import org.reflections.actors.Marshaller;
 import org.reflections.model.ClasspathMD;
+import org.reflections.helper.Logs;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -10,6 +11,8 @@ import java.io.File;
 import java.io.InputStream;
 
 /**
+ * Marshall/unmarshall ClasspathMD object to/from a file
+ *
  * @author mamo
  */
 public class XmlMarshaller implements Marshaller {
@@ -37,7 +40,7 @@ public class XmlMarshaller implements Marshaller {
             
             writer = new FileWriter(destFile);
             writer.write(fileContent);
-//            getLog().info(format("Scannotations plugin created file %s", destFile));
+            Logs.info(String.format("Reflections saved metadata to %s",destFile.getName().trim()));
         } finally {
             try {
                 //noinspection ConstantConditions

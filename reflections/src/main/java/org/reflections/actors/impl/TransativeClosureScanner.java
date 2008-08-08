@@ -10,6 +10,8 @@ import org.reflections.actors.Scanner;
 import java.util.*;
 
 /**
+ * Computes the transitive closure on the supertypes, interfaces and (meta) annotations hierarchies
+ *
  * @author mamo
  */
 public class TransativeClosureScanner implements Scanner {

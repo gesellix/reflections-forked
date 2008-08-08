@@ -12,6 +12,8 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
+ * Some classpath convenient methods
+ *
  * @author mamo
  */
 @SuppressWarnings({"AbstractClassWithoutAbstractMethods"})
@@ -51,7 +53,10 @@ public abstract class ClasspathHelper {
         try {
             final ClassLoader loader = getClassLoader();
             URL classUrl = loader.getResource(classNameToResourceName(className));
-            String baseUrlName = classUrl.toString().split(className)[0];
+            final String resourceName = classNameToResourceName(className);
+
+            final String classUrlString = classUrl.toString();
+            String baseUrlName = classUrlString.substring(0, classUrlString.indexOf(resourceName));
 
             return normalizeAndLocalizeUrl(new URL(baseUrlName));
         } catch (Exception e) {
@@ -72,7 +77,7 @@ public abstract class ClasspathHelper {
         Set<URL> relevantUrls;
         //try to narrow all urls by using getUrlsForPackagePrefix
         if (prefix.length() != 0) {
-            relevantUrls= getUrlsForPackagePrefix(prefix);
+            relevantUrls = getUrlsForPackagePrefix(prefix);
             //todo mamo >> intersect with given urls, notice that formats of url string differs
 //            relevantUrls = Sets.intersection(urls, forPackagePrefix);
 
@@ -87,10 +92,10 @@ public abstract class ClasspathHelper {
             while (namesIterator.hasNext()) {
                 String resourceName = namesIterator.next();
 
-                if (resourceName.startsWith(prefix)) {
-                    if (pattern.matcher(resourceName.substring(prefix.length())).matches()) { //if the rest matches the pattern
-                        matchingJarResources.add(resourceName);
-                    }
+                if (resourceName.startsWith(prefix) &&
+                        pattern.matcher(resourceName.substring(prefix.length())).matches()) {
+                    matchingJarResources.add(resourceName);
+                    break; //only one
                 }
             }
         }
@@ -112,6 +117,23 @@ public abstract class ClasspathHelper {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static Pattern getPatternForFqnPrefix(Class<?> aClass) {
+        final String className = aClass.getName();
+
+        return getPatternForFqnPrefix(className);
+    }
+
+    public static Pattern getPatternForFqnPrefix(String prefix) {
+        String classPattern;
+        classPattern = prefix.replaceAll("\\.", "\\\\\\.");
+        classPattern = classPattern.replaceAll("\\$", "\\\\\\$");
+        classPattern = classPattern + ".*";
+
+        Pattern pattern = Pattern.compile(classPattern);
+
+        return pattern;
     }
 
     //
@@ -150,8 +172,9 @@ public abstract class ClasspathHelper {
         return url;
     }
 
-    private static ClassLoader getClassLoader() {
+    public static ClassLoader getClassLoader() {
         return Thread.currentThread().getContextClassLoader();
     }
+
 }
 

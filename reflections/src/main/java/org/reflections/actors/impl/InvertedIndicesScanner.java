@@ -9,13 +9,18 @@ import org.reflections.actors.Scanner;
 import java.util.Set;
 
 /**
+ * Generates the inverted metadata indices, not in the key of classes, but in the key of classes metadata
+ * That is, for example, enalbes to ask questions like
+ *    what classes are annotated with a specific annotation
+ *    what are the extending types of a specific type
+ *
  * @author mamo
  */
-public class InvertedIndexesScanner implements Scanner {
+public class InvertedIndicesScanner implements Scanner {
     private final Configuration configuration;
     private final ClasspathMD classpathMD;
 
-    public InvertedIndexesScanner(Configuration configuration, ClasspathMD classpathMD) {
+    public InvertedIndicesScanner(Configuration configuration, ClasspathMD classpathMD) {
         this.configuration = configuration;
         this.classpathMD = classpathMD;
     }

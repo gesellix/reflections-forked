@@ -1,4 +1,4 @@
-package org.reflections;
+package org.reflections.helper;
 
 import com.google.common.collect.Sets;
 import org.junit.Assert;

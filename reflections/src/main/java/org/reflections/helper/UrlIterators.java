@@ -15,6 +15,9 @@ import java.util.jar.JarFile;
  * @author mamo
  */
 
+/**
+ * this couldn't get any uglier... java and OO can suck sometimes. 
+ */
 @SuppressWarnings({"AbstractClassWithoutAbstractMethods"})
 public abstract class UrlIterators {
 
@@ -23,6 +26,27 @@ public abstract class UrlIterators {
         try {
             if (isDirectory(url)) {return new DirStreamIterator(new File(url.toURI()));}
             if (isJar(url)) {return new JarStreamIterator(new JarFile(url.getFile()));}
+        } catch (Exception e) {
+            throw new RuntimeException(e); //todo: better log
+        }
+
+        return null;
+    }
+
+    public static Iterator<DataInputStream> createStreamIterator(final URL url, final Filters.Filter<String> filter) {
+
+        try {
+            if (isDirectory(url)) {
+                return new DirStreamIterator(new File(url.toURI())) {
+                    public boolean accepts(final String name) {return filter.accepts(name);}
+                };
+            }
+
+            if (isJar(url)) {
+                return new JarStreamIterator(new JarFile(new File(url.toURI()))) {
+                    public boolean accepts(final String name) {return filter.accepts(name);}
+                };
+            }
         } catch (Exception e) {
             throw new RuntimeException(e); //todo: better log
         }
@@ -46,7 +70,7 @@ public abstract class UrlIterators {
     private static boolean isDirectory(URL url) {return url.getFile().endsWith("/");}
 
     //
-    public static class DirFilesIterator extends AbstractIterator<File> {
+    public static class DirFilesIterator extends AbstractIterator<File> implements Filters.Filter<File> {
         private final Stack<File> fileStack = new Stack<File>();
 
         public DirFilesIterator(File rootDir) {
@@ -76,11 +100,11 @@ public abstract class UrlIterators {
             return endOfData();
         }
 
-        protected boolean accepts(File file) {return true;}
+        public boolean accepts(File file) {return true;}
     }
 
     @SuppressWarnings({"PackageVisibleField"})
-    public static class JarEntryIterator extends AbstractIterator<JarEntry> {
+    public static class JarEntryIterator extends AbstractIterator<JarEntry> implements Filters.Filter<JarEntry> {
         final JarFile jarFile;
         final Iterator<JarEntry> entries;
 
@@ -100,7 +124,7 @@ public abstract class UrlIterators {
             return endOfData();
         }
 
-        protected boolean accepts(JarEntry jarEntry) {return true;}
+        public boolean accepts(JarEntry jarEntry) {return true;}
     }
 
     //
@@ -115,14 +139,14 @@ public abstract class UrlIterators {
         }
     }
 
-    public static class DirClassIterator extends DirFilesIterator {
+    public static class DirClassIterator extends DirFilesIterator implements Filters.Filter<File> {
         public DirClassIterator(File rootDir) {super(rootDir);}
 
         @Override
-        protected boolean accepts(File file) {return file.getName().endsWith(".class");}
+        public boolean accepts(File file) {return file.getName().endsWith(".class");}
     }
 
-    public static class DirStreamIterator extends AbstractIterator<DataInputStream> {
+    public static class DirStreamIterator extends AbstractIterator<DataInputStream> implements Filters.Filter<String> {
         @SuppressWarnings({"PackageVisibleField"})
         final DirClassIterator dirClassIterator;
 
@@ -133,8 +157,11 @@ public abstract class UrlIterators {
         @Override
         protected DataInputStream computeNext() {
             try {
-                if (dirClassIterator.hasNext()) {
+                while (dirClassIterator.hasNext()) {
                     final File aFile = dirClassIterator.next();
+
+                    if (!accepts(aFile.getName())) {continue;}
+
                     return new DataInputStream(new BufferedInputStream(
                             new FileInputStream(aFile)));
                 }
@@ -143,14 +170,16 @@ public abstract class UrlIterators {
             }
             return endOfData();
         }
+
+        public boolean accepts(String name) {return true;}
     }
 
     //
-    public static class JarClassIterator extends JarEntryIterator {
+    public static class JarClassIterator extends JarEntryIterator implements Filters.Filter<JarEntry> {
         public JarClassIterator(JarFile jarFile) {super(jarFile);}
 
         @Override
-        protected boolean accepts(JarEntry jarEntry) {return jarEntry.getName().endsWith(".class");}
+        public boolean accepts(JarEntry jarEntry) {return jarEntry.getName().endsWith(".class");}
     }
 
     public static class JarNamesIterator extends AbstractIterator<String> {
@@ -164,24 +193,29 @@ public abstract class UrlIterators {
         }
     }
 
-    public static class JarStreamIterator extends AbstractIterator<DataInputStream> {
-        private final JarClassIterator jarClassIterator;
+    public static class JarStreamIterator extends AbstractIterator<DataInputStream> implements Filters.Filter<String> {
+        private final JarEntryIterator jarEntryIterator;
 
         public JarStreamIterator(JarFile jarFile) {
-            jarClassIterator = new JarClassIterator(jarFile);
+            jarEntryIterator = new JarEntryIterator(jarFile);
         }
 
         @Override
         protected DataInputStream computeNext() {
             try {
-                if (jarClassIterator.hasNext()) {
-                    final JarEntry entry = jarClassIterator.next();
+                while (jarEntryIterator.hasNext()) {
+                    final JarEntry entry = jarEntryIterator.next();
+
+                    if (!accepts(entry.getName())) {continue;}
+
                     return new DataInputStream(new BufferedInputStream(
-                            jarClassIterator.jarFile.getInputStream(entry)));
+                            jarEntryIterator.jarFile.getInputStream(entry)));
                 }
             } catch (IOException e) {throw new RuntimeException(e);} //todo: better log
 
             return endOfData();
         }
+
+        public boolean accepts(String name) {return true;}
     }
 }

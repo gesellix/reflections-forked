@@ -20,7 +20,7 @@ public class ClassMD {
         elementTypesMap.put(elementType, element);
     }
 
-    public void addMD(ElementTypes elementType, Collection<String> elements) {
+    public void addMD(ElementTypes elementType, Iterable<String> elements) {
         elementTypesMap.putAll(elementType, elements);
     }
 

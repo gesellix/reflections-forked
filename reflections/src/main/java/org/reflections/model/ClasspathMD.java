@@ -4,8 +4,6 @@ import com.google.common.collect.*;
 
 import java.util.*;
 
-import org.reflections.helper.Checks;
-
 /**
  * @author mamo
  */
@@ -23,8 +21,9 @@ public class ClasspathMD {
     }
 
     public void addClassMD(ClassMD classMD) {
-        Checks.checkNotNull(classMD);
-        classesMD.put(classMD.getName(), classMD);
+        if (classMD!=null) {
+            classesMD.put(classMD.getName(), classMD);
+        }
     }
 
     public void addClassMD(Set<ClassMD> classMDs) {
@@ -46,5 +45,9 @@ public class ClasspathMD {
     public void addClasspathMD(ClasspathMD classpathMD) {
         classesMD.putAll(classpathMD.classesMD);
         invertedMD.putAll(classpathMD.invertedMD);
+    }
+
+    public int getClassCount() {
+        return classesMD.size();
     }
 }

@@ -5,12 +5,25 @@ import com.google.common.collect.Sets;
 
 import java.util.Set;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 import java.net.URL;
 
 import static org.reflections.model.ElementTypes.*;
 import org.reflections.helper.ReflectionsConstants;
 
 /**
+ * contains all raw configuration needed by reflections.
+ * To use it, use Configuraion.build(...) passing some (optionaly) convenient ConfigurationBuilder
+ * and use the setters here to (fine) tune it
+ *
+ * for example, to create a configuration that results in scanning annotations and computing transitive closure on current class's url:
+ *      Configuration.build(Annotations, Transitive, ThisUrl);
+ * which is the same as:
+ *      Configuration.build()
+ *          .addElementTypesToScan(ElementTypes.annotations)
+ *          .setComputeTransitiveClosure(true)
+ *          .addUrls(ClasspathHelper.getUrlForClass(this.getClass()));
+ *
  * @author mamo
  */
 @SuppressWarnings({"ClassWithTooManyMethods"})
@@ -20,9 +33,9 @@ public abstract class Configuration {
     private boolean computeTransitiveClosure;
     private Set<ElementTypes> invertedElementTypes = Sets.newEnumSet(Iterables.<ElementTypes>emptyIterable(), ElementTypes.class);
     private Set<URL> urls = Sets.newHashSet();
-    private Set<String> excludedFqnPrefixes = Sets.newHashSet();
-    private Set<String> includeFqnPrefixes = Sets.newHashSet();
-    private boolean scanSources;
+    private Set<Pattern> excludePatterns = Sets.newHashSet();
+    private Set<Pattern> includePatterns = Sets.newHashSet();
+//    private boolean scanSources;
     private boolean fetchPostCompiledResources;
     private String postCompiledResourcesPattern = ReflectionsConstants.DEFAULT_POST_COMPILED_RESOURCES_PATTERN;
     private String postCompiledResourcesPackagePrefix = ReflectionsConstants.DEFAULT_POST_COMPILED_RESOURCES_PACKAGE_PREFIX;
@@ -59,20 +72,20 @@ public abstract class Configuration {
         return this;
     }
 
-    public Configuration addExcludedFqnsPrefixes(String... fqnsPrefixes) {
-        this.excludedFqnPrefixes.addAll(Arrays.asList(fqnsPrefixes));
+    public Configuration addExcludePatterns(Pattern... patterns) {
+        this.excludePatterns.addAll(Arrays.asList(patterns));
         return this;
     }
 
-    public Configuration addIncludedFqnPrefixes(String... fqnPrefixes) {
-        this.includeFqnPrefixes.addAll(Arrays.asList(fqnPrefixes));
+    public Configuration addIncludePatterns(Pattern... fqnPrefixes) {
+        this.includePatterns.addAll(Arrays.asList(fqnPrefixes));
         return this;
     }
 
-    public Configuration setScanSources(boolean scanSources) {
-        this.scanSources = scanSources;
-        return this;
-    }
+//    public Configuration setScanSources(boolean scanSources) {
+//        this.scanSources = scanSources;
+//        return this;
+//    }
 
     public Configuration setFetchPostCompiledResources(boolean fetchPostCompiledResources) {
         this.fetchPostCompiledResources = fetchPostCompiledResources;
@@ -95,7 +108,7 @@ public abstract class Configuration {
 
     public boolean shouldComputeTransitiveClosure() {return computeTransitiveClosure;}
 
-    public boolean shouldComputeInvertedIndexes() {return !invertedElementTypes.isEmpty();}
+    public boolean shouldComputeInvertedIndices() {return !invertedElementTypes.isEmpty();}
 
     public Set<ElementTypes> getInvertedElementTypes() {
         return invertedElementTypes;
@@ -103,19 +116,15 @@ public abstract class Configuration {
 
     public Set<URL> getUrls() {return urls;}
 
-    public Set<String> getExcludedFqnPrefixes() {
-        return excludedFqnPrefixes;
-    }
+    public Set<Pattern> getExcludePatterns() {return excludePatterns;}
 
-    public Set<String> getIncludeFqnPrefixes() {
-        return includeFqnPrefixes;
-    }
+    public Set<Pattern> getIncludePatterns() {return includePatterns;}
 
     public String getPostCompiledResourcesPackagePrefix() {return postCompiledResourcesPackagePrefix;}
 
     public String getPostCompiledResourcesPattern() {return postCompiledResourcesPattern;}
 
-    public boolean shouldScanSources() {return scanSources;}
+//    public boolean shouldScanSources() {return scanSources;}
 
     public boolean shouldFetchPreCompiledResources() {return fetchPostCompiledResources;}
 }

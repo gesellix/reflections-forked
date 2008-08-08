@@ -1,10 +1,14 @@
-package org.reflections;
+package org.reflections.tests;
 
 import static com.google.common.collect.Sets.newHashSet;
-import static org.reflections.InvertedMDComputedCorrectly.TestModel.*;
 import org.junit.Test;
+import org.reflections.actors.impl.ClasspathScanner;
+import org.reflections.helper.Asserts;
 import org.reflections.helper.ClasspathHelper;
+import org.reflections.model.ClasspathMD;
 import org.reflections.model.Configuration;
+import static org.reflections.model.ConfigurationBuilder.*;
+import static org.reflections.tests.InvertedMDComputedCorrectly.TestModel.*;
 
 import java.lang.annotation.Retention;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
@@ -26,15 +30,18 @@ public class InvertedMDComputedCorrectly {
         public class C2 extends C1 {}
         public class C3 implements I1 {}
     }
+    
     @Test
     public void invertedAnnotationOnTypesIsCorrect() {
-        Reflections reflections = new Reflections() {}
-                .setConfiguration(Configuration
-                        .build()
-                        .addUrls(ClasspathHelper.getUrlForClass(InvertedMDComputedCorrectly.class)));
+        ClasspathMD classpathMD = new ClasspathMD();
+        new ClasspathScanner(
+                Configuration.build
+                        (Annotations, ExcludeAll, ThisUrl)
+                        .addIncludePatterns(ClasspathHelper.getPatternForFqnPrefix(InvertedMDComputedCorrectly.TestModel.class))
+                , classpathMD).scan();
 
         Asserts.collectionsContained(
-                reflections.classpathMD.getInvertedMD(name(AI1.class)),
+                classpathMD.getInvertedMD(name(AI1.class)),
                 newHashSet(
                         name(I1.class), //interface with explicit annotation
                         name(I2.class), //another interface with explicit annotation
@@ -43,14 +50,15 @@ public class InvertedMDComputedCorrectly {
 
     @Test
     public void invertedAnnotationWhenTransitiveClosureComputerIsCorrect() {
-        Reflections reflections = new Reflections() {}
-                .setConfiguration(Configuration
-                        .build()
-                        .addUrls(ClasspathHelper.getUrlForClass(InvertedMDComputedCorrectly.class))
-                        .setComputeTransitiveClosure(true));
+        ClasspathMD classpathMD = new ClasspathMD();
+        new ClasspathScanner(
+                Configuration.build
+                        (Annotations, Transitive, ExcludeAll, ThisUrl)
+                        .addIncludePatterns(ClasspathHelper.getPatternForFqnPrefix(InvertedMDComputedCorrectly.TestModel.class))
+                , classpathMD).scan();
 
         Asserts.collectionsContained(
-                reflections.classpathMD.getInvertedMD(name(AI1.class)),
+                classpathMD.getInvertedMD(name(AI1.class)),
                 newHashSet(
                         name(I1.class), //interface with explicit annotation
                         name(I2.class), //another interface with explicit annotation
