@@ -14,6 +14,7 @@ public abstract class Logs {
     private static final Logger logger;
 
     static {
+        //todo: get a good logger configured
         logger = Logger.getAnonymousLogger();
     }
 
@@ -28,7 +29,7 @@ public abstract class Logs {
     }
 
     private static StackTraceElement getCallee() {
-        return Thread.currentThread().getStackTrace()[4];
+        return Thread.currentThread().getStackTrace()[5];
     }
 
     public static void info(String msg) {

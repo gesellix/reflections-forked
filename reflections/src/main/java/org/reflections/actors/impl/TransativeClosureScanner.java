@@ -1,13 +1,17 @@
 package org.reflections.actors.impl;
 
-import org.reflections.model.ClassMD;
-import org.reflections.model.ClasspathMD;
-import static org.reflections.model.ElementTypes.*;
-import org.reflections.helper.StupidLazyMap;
-import org.reflections.helper.RelaxedHashSet;
 import org.reflections.actors.Scanner;
+import org.reflections.helper.RelaxedHashSet;
+import org.reflections.helper.StupidLazyMap;
+import org.reflections.model.ClasspathMD;
+import org.reflections.model.meta.*;
+import org.reflections.model.meta.MetaClass;
+import org.reflections.model.meta.meta.FirstClassElement;
+import org.reflections.model.meta.meta.AnnotatedElement;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Computes the transitive closure on the supertypes, interfaces and (meta) annotations hierarchies
@@ -21,31 +25,35 @@ public class TransativeClosureScanner implements Scanner {
         this.classpathMD = classpathMD;
     }
 
+    @SuppressWarnings({"RedundantCast"})
     public void scan() {
-        Set<String> classesKeys = classpathMD.getClassesKeys();
-        for (String className : classesKeys) {
-            ClassMD classMD = classpathMD.getClassMD(className);
+        for (FirstClassElement element : classpathMD.getTypes()) {
 
-            classMD.addMD(supertypes, superTypesCache.get(className));
-            classMD.addMD(interfaces, interfacesCache.get(className));
-            classMD.addMD(annotations, annotationsCache.get(className));
+            element.addAnnotations(annotationsCache.get(element));
+
+            if (element instanceof MetaInterface) {
+                ((MetaInterface) element).addInterfaces(interfacesCache.get((MetaInterface) element));
+            }
+
+            if (element instanceof MetaClass) {
+                ((MetaClass) element).addSuperClasses(superTypesCache.get((MetaClass) element));
+            }
         }
     }
 
     @SuppressWarnings({"MismatchedQueryAndUpdateOfCollection"})
-    private final Map<String, Set<String>> superTypesCache =
-            new StupidLazyMap<String, Set<String>>() {
+    private final Map<MetaClass, Collection<MetaClass>> superTypesCache =
+            new StupidLazyMap<MetaClass, Collection<MetaClass>>() {
                 @Override
-                protected Set<String> create(String className) {
-                    ClassMD classMD = classpathMD.getClassMD(className);
-                    Set<String> superTypes = RelaxedHashSet.create();
+                protected Collection<MetaClass> create(MetaClass metaClass) {
+                    Collection<MetaClass> superTypes = RelaxedHashSet.create();
 
-                    if (classMD != null) {
-                        for (String superType : classMD.getMD(supertypes)) {
-                            if (superType == null) {continue;} //top most type - Object
-                            superTypes.add(superType);
-                            Set<String> strings = superTypesCache.get(superType);
-                            superTypes.addAll(strings);
+                    if (metaClass != null) { //todo: try to avoid null
+                        for (MetaClass superClass : metaClass.getSuperClasses()) {
+                            if (superClass == null) {continue;} //top most type - Object todo try to avoid null
+                            superTypes.add(superClass);
+                            //add supertypes from each supertype
+                            superTypes.addAll(superTypesCache.get(superClass));
                         }
                     }
                     return superTypes;
@@ -53,65 +61,64 @@ public class TransativeClosureScanner implements Scanner {
             };
 
     @SuppressWarnings({"MismatchedQueryAndUpdateOfCollection"})
-    private final Map<String, Set<String>> interfacesCache =
-            new StupidLazyMap<String, Set<String>>() {
-                @Override
-                protected Set<String> create(String className) {
-                    ClassMD classMD = classpathMD.getClassMD(className);
-                    Set<String> resultInterfaces = RelaxedHashSet.create();
+    private final Map<MetaInterface, Collection<MetaInterface>> interfacesCache =
+            new StupidLazyMap<MetaInterface, Collection<MetaInterface>>() {
+                @SuppressWarnings({"RedundantCast"}) @Override
+                protected Collection<MetaInterface> create(MetaInterface anInterface) {
+                    Set<MetaInterface> interfaces = RelaxedHashSet.create();
 
-                    if (classMD != null) {
-                        for (String anInterface : classMD.getMD(interfaces)) {
-                            resultInterfaces.add(anInterface);
-                            resultInterfaces.addAll(interfacesCache.get(anInterface));
+                    if (anInterface != null) { //todo: try to avoid null
+                        for (MetaInterface metaInterface : anInterface.getInterfaces()) {
+                            if (metaInterface == null) {continue;} //top most type - Object todo try to avoid null
+                            interfaces.add(metaInterface);
+                            //add interfaces from each interface
+                            interfaces.addAll(interfacesCache.get(metaInterface));
                         }
 
                         //add interfaces from superclasses
-                        for (String superClass : superTypesCache.get(className)) {
-                            resultInterfaces.addAll(interfacesCache.get(superClass));
+                        if (anInterface instanceof MetaClass) {
+                            for (MetaClass superClass : superTypesCache.get(((MetaClass) anInterface))) {
+                                interfaces.addAll(interfacesCache.get(((MetaInterface) superClass)));
+                            }
                         }
                     }
-
-                    return resultInterfaces;
+                    return interfaces;
                 }
             };
 
-    //todo: should consider @Inherited?
     //todo: this is because ClasspathMD's classMDs could be scanned either by javaAssist or conventional reflection, and the results must be the same
     @SuppressWarnings({"MismatchedQueryAndUpdateOfCollection"})
-    private final Map<String, Set<String>> annotationsCache =
-            new StupidLazyMap<String, Set<String>>() {
-                private final Stack<String> classesStack = new Stack<String>();
+    private final Map<AnnotatedElement, Set<MetaAnnotation>> annotationsCache =
+            new StupidLazyMap<AnnotatedElement, Set<MetaAnnotation>>() {
+                @SuppressWarnings({"RedundantCast"}) @Override
+                protected Set<MetaAnnotation> create(AnnotatedElement annotatedElement) {
+                    Set<MetaAnnotation> resultAnnotations = RelaxedHashSet.create();
+                    if (annotatedElement != null) { //todo: try to avoid null
 
-                @Override
-                protected Set<String> create(String className) {
-                    ClassMD classMD = classpathMD.getClassMD(className);
-
-                    classesStack.push(className);
-
-                    Set<String> resultAnnotations = RelaxedHashSet.create();
-
-                    if (classMD != null) {
-
-                        Collection<String> classAnnotations = classMD.getMD(annotations);
-                        classAnnotations.removeAll(classesStack); //avoid circularity
-
-                        for (String anAnnotation : classAnnotations) {
-                            resultAnnotations.add(anAnnotation);
+                        //add meta annotations
+                        for (MetaAnnotation anAnnotation : annotatedElement.getAnnotations()) {
+                            resultAnnotations.add(anAnnotation); //todo: remove inclusive add
                             resultAnnotations.addAll(annotationsCache.get(anAnnotation));
                         }
-                        for (String superType : superTypesCache.get(className)) {
-                            resultAnnotations.addAll(annotationsCache.get(superType));
+
+                        //add annotations inherited from supertypes
+                        //todo: should consider @Inherited?
+                        if (annotatedElement instanceof MetaClass) {
+                            for (MetaClass superType : superTypesCache.get(((MetaClass) annotatedElement))) {
+                                resultAnnotations.addAll(annotationsCache.get(superType));
+                            }
                         }
-                        for (String anInterface : interfacesCache.get(className)) {
-                            resultAnnotations.addAll(annotationsCache.get(anInterface));
+
+                        //add annotations inhertied from interfaces
+                        //todo: should consider @Inherited?
+                        if (annotatedElement instanceof MetaInterface) {
+                            for (MetaInterface anInterface : interfacesCache.get(((MetaInterface) annotatedElement))) {
+                                resultAnnotations.addAll(annotationsCache.get(anInterface));
+                            }
                         }
                     }
-
-                    classesStack.pop();
                     return resultAnnotations;
                 }
             };
-
 }
 

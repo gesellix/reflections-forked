@@ -55,6 +55,6 @@ public class XmlMarshaller implements Marshaller {
 
         ClasspathMD newClasspathMD = (ClasspathMD) xStream.fromXML(stream);
 
-        classpathMD.addClasspathMD(newClasspathMD);
+        classpathMD.mergeClasspathMD(newClasspathMD);
     }
 }

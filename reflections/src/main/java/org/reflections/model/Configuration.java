@@ -2,14 +2,13 @@ package org.reflections.model;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-
-import java.util.Set;
-import java.util.Arrays;
-import java.util.regex.Pattern;
-import java.net.URL;
-
-import static org.reflections.model.ElementTypes.*;
 import org.reflections.helper.ReflectionsConstants;
+import static org.reflections.model.ElementTypes.supertypes;
+
+import java.net.URL;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * contains all raw configuration needed by reflections.
@@ -31,11 +30,10 @@ public abstract class Configuration {
 
     private Set<ElementTypes> elementTypesToScan = Sets.newEnumSet(Iterables.<ElementTypes>emptyIterable(), ElementTypes.class);
     private boolean computeTransitiveClosure;
-    private Set<ElementTypes> invertedElementTypes = Sets.newEnumSet(Iterables.<ElementTypes>emptyIterable(), ElementTypes.class);
+    private Set<ElementTypes> reverseElementTypes = Sets.newEnumSet(Iterables.<ElementTypes>emptyIterable(), ElementTypes.class);
     private Set<URL> urls = Sets.newHashSet();
     private Set<Pattern> excludePatterns = Sets.newHashSet();
     private Set<Pattern> includePatterns = Sets.newHashSet();
-//    private boolean scanSources;
     private boolean fetchPostCompiledResources;
     private String postCompiledResourcesPattern = ReflectionsConstants.DEFAULT_POST_COMPILED_RESOURCES_PATTERN;
     private String postCompiledResourcesPackagePrefix = ReflectionsConstants.DEFAULT_POST_COMPILED_RESOURCES_PACKAGE_PREFIX;
@@ -52,13 +50,13 @@ public abstract class Configuration {
     }
 
     public Configuration setComputeTransitiveClosure(boolean computeTransitiveClosure) {
-        dependsOnElementsTypesToScan(supertypes, interfaces);
+        dependsOnElementsTypesToScan(supertypes);
         this.computeTransitiveClosure = computeTransitiveClosure;
         return this;
     }
 
-    public Configuration addInvertedElementTypes(ElementTypes... invertedElementTypes) {
-        this.invertedElementTypes.addAll(Arrays.asList(invertedElementTypes));
+    public Configuration addReverseElementTypes(ElementTypes... invertedElementTypes) {
+        this.reverseElementTypes.addAll(Arrays.asList(invertedElementTypes));
         return this;
     }
 
@@ -82,11 +80,6 @@ public abstract class Configuration {
         return this;
     }
 
-//    public Configuration setScanSources(boolean scanSources) {
-//        this.scanSources = scanSources;
-//        return this;
-//    }
-
     public Configuration setFetchPostCompiledResources(boolean fetchPostCompiledResources) {
         this.fetchPostCompiledResources = fetchPostCompiledResources;
         return this;
@@ -108,10 +101,10 @@ public abstract class Configuration {
 
     public boolean shouldComputeTransitiveClosure() {return computeTransitiveClosure;}
 
-    public boolean shouldComputeInvertedIndices() {return !invertedElementTypes.isEmpty();}
+    public boolean shouldComputeReverseIndices() {return !reverseElementTypes.isEmpty();}
 
-    public Set<ElementTypes> getInvertedElementTypes() {
-        return invertedElementTypes;
+    public Set<ElementTypes> getReverseElementTypes() {
+        return reverseElementTypes;
     }
 
     public Set<URL> getUrls() {return urls;}
@@ -123,8 +116,6 @@ public abstract class Configuration {
     public String getPostCompiledResourcesPackagePrefix() {return postCompiledResourcesPackagePrefix;}
 
     public String getPostCompiledResourcesPattern() {return postCompiledResourcesPattern;}
-
-//    public boolean shouldScanSources() {return scanSources;}
 
     public boolean shouldFetchPreCompiledResources() {return fetchPostCompiledResources;}
 }

@@ -11,8 +11,9 @@ import org.reflections.model.ClasspathMD;
 import org.reflections.model.Configuration;
 import static org.reflections.model.ConfigurationBuilder.ExcludeAll;
 import static org.reflections.model.ConfigurationBuilder.Transitive;
+import org.reflections.model.meta.meta.FirstClassElement;
 
-import java.util.Set;
+import java.util.Collection;
 
 /**
  * @author mamo
@@ -30,11 +31,11 @@ public class IncludeExceludeIsCorrect {
                 , classpathMD)
                 .scan();
 
-        final Set<String> classesKeys = classpathMD.getClassesKeys();
+        final Collection<FirstClassElement> classesKeys = classpathMD.getTypes();
 
-        final boolean all = Iterables.all(classesKeys, new Predicate<String>() {
-            public boolean apply(@Nullable String name) {
-                return name.startsWith(ScannerScansAnnotationsCorrectly.class.getName());
+        final boolean all = Iterables.all(classesKeys, new Predicate<FirstClassElement>() {
+            public boolean apply(@Nullable FirstClassElement basicType) {
+                return basicType.getType().startsWith(ScannerScansAnnotationsCorrectly.class.getName());
             }
         });
 

@@ -52,8 +52,8 @@ public abstract class ClasspathHelper {
     public static URL getUrlForClassName(String className) {
         try {
             final ClassLoader loader = getClassLoader();
-            URL classUrl = loader.getResource(classNameToResourceName(className));
-            final String resourceName = classNameToResourceName(className);
+            URL classUrl = loader.getResource(DescriptorHelper.classNameToResourceName(className));
+            final String resourceName = DescriptorHelper.classNameToResourceName(className);
 
             final String classUrlString = classUrl.toString();
             String baseUrlName = classUrlString.substring(0, classUrlString.indexOf(resourceName));
@@ -105,7 +105,7 @@ public abstract class ClasspathHelper {
 
     public static Set<URL> getUrlsForPackagePrefix(String packagePrefix) {
         final Set<URL> urls = Sets.newHashSet();
-        String packageResourcePrefix = qNameToResourceName(packagePrefix);
+        String packageResourcePrefix = DescriptorHelper.qNameToResourceName(packagePrefix);
         try {
             final Enumeration<URL> urlEnumeration = getClassLoader().getResources(packageResourcePrefix);
             while (urlEnumeration.hasMoreElements()) {
@@ -134,19 +134,6 @@ public abstract class ClasspathHelper {
         Pattern pattern = Pattern.compile(classPattern);
 
         return pattern;
-    }
-
-    //
-    public static String classToResourceName(Class<?> aClass) {
-        return classNameToResourceName(aClass.getName());
-    }
-
-    public static String classNameToResourceName(final String className) {
-        return qNameToResourceName(className) + ".class";
-    }
-
-    public static String qNameToResourceName(String qName) {
-        return qName.replace(".", "/");
     }
 
     //todo: this is only partial

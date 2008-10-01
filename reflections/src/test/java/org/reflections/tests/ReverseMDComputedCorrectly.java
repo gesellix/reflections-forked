@@ -5,10 +5,11 @@ import org.junit.Test;
 import org.reflections.actors.impl.ClasspathScanner;
 import org.reflections.helper.Asserts;
 import org.reflections.helper.ClasspathHelper;
+import static org.reflections.helper.DescriptorHelper.className;
+import static org.reflections.helper.TestHelper.toTypes;
 import org.reflections.model.ClasspathMD;
 import org.reflections.model.Configuration;
 import static org.reflections.model.ConfigurationBuilder.*;
-import static org.reflections.tests.InvertedMDComputedCorrectly.TestModel.*;
 
 import java.lang.annotation.Retention;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
@@ -16,9 +17,8 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 /**
  * @author mamo
  */
-
 @SuppressWarnings({"AccessingNonPublicFieldOfAnotherObject"})
-public class InvertedMDComputedCorrectly {
+public class ReverseMDComputedCorrectly {
 
     @SuppressWarnings({"ALL"})
     //kindly leave it unformatted single lined
@@ -37,15 +37,15 @@ public class InvertedMDComputedCorrectly {
         new ClasspathScanner(
                 Configuration.build
                         (Annotations, ExcludeAll, ThisUrl)
-                        .addIncludePatterns(ClasspathHelper.getPatternForFqnPrefix(InvertedMDComputedCorrectly.TestModel.class))
+                        .addIncludePatterns(ClasspathHelper.getPatternForFqnPrefix(ReverseMDComputedCorrectly.TestModel.class))
                 , classpathMD).scan();
 
         Asserts.collectionsContained(
-                classpathMD.getInvertedMD(name(AI1.class)),
+                toTypes(classpathMD.getReverseFirstClassElements(className(TestModel.AI1.class))),
                 newHashSet(
-                        name(I1.class), //interface with explicit annotation
-                        name(I2.class), //another interface with explicit annotation
-                        name(C1.class))); //class with explicit annotation
+                        className(TestModel.I1.class), //interface with explicit annotation
+                        className(TestModel.I2.class), //another interface with explicit annotation
+                        className(TestModel.C1.class))); //class with explicit annotation
     }
 
     @Test
@@ -54,20 +54,17 @@ public class InvertedMDComputedCorrectly {
         new ClasspathScanner(
                 Configuration.build
                         (Annotations, Transitive, ExcludeAll, ThisUrl)
-                        .addIncludePatterns(ClasspathHelper.getPatternForFqnPrefix(InvertedMDComputedCorrectly.TestModel.class))
+                        .addIncludePatterns(ClasspathHelper.getPatternForFqnPrefix(ReverseMDComputedCorrectly.TestModel.class))
                 , classpathMD).scan();
 
         Asserts.collectionsContained(
-                classpathMD.getInvertedMD(name(AI1.class)),
+                toTypes(classpathMD.getReverseFirstClassElements(className(TestModel.AI1.class))),
                 newHashSet(
-                        name(I1.class), //interface with explicit annotation
-                        name(I2.class), //another interface with explicit annotation
-                        name(C1.class), //class with explicit annotation
-                        name(C2.class), //class with implicit annotation from supertype
-                        name(C3.class)  //class with implicit annotation from interface
+                        className(TestModel.I1.class), //interface with explicit annotation
+                        className(TestModel.I2.class), //another interface with explicit annotation
+                        className(TestModel.C1.class), //class with explicit annotation
+                        className(TestModel.C2.class), //class with implicit annotation from supertype
+                        className(TestModel.C3.class)  //class with implicit annotation from interface
                 ));
     }
-
-    //
-    protected static String name(Class<?> aClass) {return aClass.getName();}
 }

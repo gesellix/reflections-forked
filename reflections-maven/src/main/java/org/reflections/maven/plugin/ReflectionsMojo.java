@@ -40,7 +40,7 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
     private boolean computeTransitiveClosure;
 
     @MojoParameter(description = "a comma separated list of destinations to save metadata to"
-            , defaultValue = "${project.build.outputDirectory}/reflections/${project.artifactId}-reflections.xml")
+            , defaultValue = "${project.build.outputDirectory}/META-INF/reflections/${project.artifactId}-reflections.xml")
     private String destinations;
 
     @MojoParameter(description = "a comma separated list of regex that will be used from classes and metadata exclusions"
@@ -69,14 +69,13 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
         }
 
         //
-        Reflections reflections = new Reflections() {
-        }
+        Reflections reflections = new Reflections() {}
                 .setConfiguration(Configuration
                         .build()
                         .addUrls(getOutputDirUrl())
                         .addElementTypesToScan(parseElementTypesToScan())
                         .setComputeTransitiveClosure(computeTransitiveClosure)
-                        .addInvertedElementTypes(parseInvertedElementTypesToScan())
+                        .addReverseElementTypes(parseInvertedElementTypesToScan())
                         .addExcludePatterns(parseExcludePatterns())
                         .addIncludePatterns(parseIncludePatterns())
                 );

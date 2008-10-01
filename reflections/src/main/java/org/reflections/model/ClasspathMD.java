@@ -1,6 +1,8 @@
 package org.reflections.model;
 
-import com.google.common.collect.*;
+import org.reflections.model.meta.MetaClass;
+import org.reflections.model.meta.meta.BasicElement;
+import org.reflections.model.meta.meta.FirstClassElement;
 
 import java.util.*;
 
@@ -9,45 +11,49 @@ import java.util.*;
  */
 @SuppressWarnings({"PackageVisibleField"})
 public class ClasspathMD {
-    Map<String/*class name*/,ClassMD> classesMD = Maps.newHashMap();
-    Multimap<String, String> invertedMD = Multimaps.newHashMultimap();
+    private final Map<String, FirstClassElement> firstClassElementMap = new HashMap<String, FirstClassElement>();
+    private final Map<String,Set<BasicElement>> reverseFirstClassElementsMap = new HashMap<String, Set<BasicElement>>();
 
-    public Set<String> getClassesKeys() {
-        return Sets.newConcurrentHashSet(classesMD.keySet());
+    public Collection<FirstClassElement> getTypes() {
+        return firstClassElementMap.values();
     }
 
-    public ClassMD getClassMD(String className) {
-        return classesMD.get(className);
+    public FirstClassElement getType(String className) {
+        return firstClassElementMap.get(className);
     }
 
-    public void addClassMD(ClassMD classMD) {
-        if (classMD!=null) {
-            classesMD.put(classMD.getName(), classMD);
+    public void addMetaClass(FirstClassElement element) {
+        if (element != null) {
+            firstClassElementMap.put(element.getType(), element);
         }
     }
 
-    public void addClassMD(Set<ClassMD> classMDs) {
-        for (ClassMD classMD : classMDs) {
-            addClassMD(classMD);
+    public void addMetaClasses(Set<MetaClass> aClasses) {
+        for (MetaClass aClass : aClasses) {
+            addMetaClass(aClass);
         }
     }
 
-    public void addInvertedMD(String className, Collection<String> elements) {
-        for (String element : elements) {
-            invertedMD.put(element, className);
-        }
+    public Set<BasicElement> getReverseFirstClassElements(String elementName) {
+        return reverseFirstClassElementsMap.get(elementName);
     }
 
-    public Collection<String> getInvertedMD(String elementName) {
-        return invertedMD.get(elementName);
-    }
-
-    public void addClasspathMD(ClasspathMD classpathMD) {
-        classesMD.putAll(classpathMD.classesMD);
-        invertedMD.putAll(classpathMD.invertedMD);
+    public void mergeClasspathMD(ClasspathMD classpathMD) {
+        firstClassElementMap.putAll(classpathMD.firstClassElementMap);
+        reverseFirstClassElementsMap.putAll(classpathMD.reverseFirstClassElementsMap);
     }
 
     public int getClassCount() {
-        return classesMD.size();
+        return firstClassElementMap.size();
+    }
+
+    public void addReverseMD(FirstClassElement element1, BasicElement element2) {
+        final String elementName = element1.getType();
+
+        if (!reverseFirstClassElementsMap.containsKey(elementName)) {
+            reverseFirstClassElementsMap.put(elementName,new HashSet<BasicElement>());
+        }
+
+        reverseFirstClassElementsMap.get(elementName).add(element2);
     }
 }

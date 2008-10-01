@@ -1,13 +1,12 @@
 package org.reflections.actors.impl;
 
+import com.google.common.collect.Sets;
 import org.reflections.actors.Scanner;
-import org.reflections.model.Configuration;
-import org.reflections.model.ClasspathMD;
 import org.reflections.helper.Logs;
+import org.reflections.model.ClasspathMD;
+import org.reflections.model.Configuration;
 
 import java.util.Set;
-
-import com.google.common.collect.Sets;
 
 /**
  * @author mamo
@@ -47,11 +46,11 @@ public class ClasspathScanner implements Scanner {
                     -time + (time = System.currentTimeMillis())));
         }
 
-        if (configuration.shouldComputeInvertedIndices()) {
-            new InvertedIndicesScanner(configuration,classpathMD).scan();
+        if (configuration.shouldComputeReverseIndices()) {
+            new ReverseIndicesScanner(configuration,classpathMD).scan();
 
             Logs.info(String.format("Compute inverted indices took %d ms",
-                    -time + (time = System.currentTimeMillis())));
+                    -time + (System.currentTimeMillis())));
         }
 
         Logs.info(String.format("Reflections took %d ms to find %d classes in %d urls and %d post compiled resources", 

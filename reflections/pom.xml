@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.reflections</groupId>
         <artifactId>reflections-parent</artifactId>
-        <version>0.2-SNAPSHOT</version>
+        <version>0.3-SNAPSHOT</version>
     </parent>
 
     <artifactId>reflections</artifactId>
@@ -13,9 +13,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.google.code.google-collections</groupId>
-            <artifactId>google-collect</artifactId>
-            <version>snapshot-20080530</version>
+            <groupId>com.google.collections</groupId>
+            <artifactId>google-collections</artifactId>
+            <version>0.8</version>
         </dependency>
 
         <dependency>

@@ -1,10 +1,9 @@
 package org.reflections.helper;
 
-import com.google.common.base.Nullable;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import org.reflections.model.Configuration;
 
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -53,11 +52,26 @@ public abstract class Filters {
         }
     }
 
-    public static <T> Iterable<T> filterAll(Iterable<T> list, final Filter<T> filter) {
-        return Iterables.filter(list,new Predicate<T>() {
-            public boolean apply(@Nullable T t) {
-                return filter.accepts(t);
-            }
-        });
+    public static <T> Set<T> filter(Iterable<T> list, final Filter<T> filter) {
+        Set<T> result = Sets.newHashSet();
+        for (T item : list) {
+            if (filter.accepts(item)) {result.add(item);}
+        }
+
+        return result;
     }
+
+    public static class Aggregation implements Filters.Filter<String> {
+        private final Filters.Filter<String>[] filters;
+
+        public Aggregation(Filters.Filter<String>... filters) {this.filters = filters;}
+
+        public boolean accepts(String s) {
+            for (Filters.Filter<String> filter : filters) {
+                if (!filter.accepts(s)) {return false;}
+            }
+            return true;
+        }
+    }
+
 }

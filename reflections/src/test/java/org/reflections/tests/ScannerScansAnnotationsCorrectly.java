@@ -2,16 +2,17 @@ package org.reflections.tests;
 
 import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Sets.newHashSet;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.reflections.actors.impl.ClasspathScanner;
 import org.reflections.helper.Asserts;
 import org.reflections.helper.ClasspathHelper;
+import static org.reflections.helper.DescriptorHelper.className;
+import static org.reflections.helper.TestHelper.toTypes;
 import org.reflections.model.ClasspathMD;
 import org.reflections.model.Configuration;
-import org.reflections.model.ElementTypes;
 import static org.reflections.model.ConfigurationBuilder.*;
-import static org.reflections.model.ElementTypes.annotations;
 import static org.reflections.tests.ScannerScansAnnotationsCorrectly.TestModel.*;
 
 import java.lang.annotation.Retention;
@@ -46,62 +47,60 @@ public class ScannerScansAnnotationsCorrectly {
         public @AI4 interface I4 extends I3 {}
         public @Retention(RUNTIME) @interface AC1 {}
         public @AC1 class C1 implements I4 {}
-        public class C2 extends C1 {}
+        public @Retention(RUNTIME) @interface AC2 {}
+        public @AC2 class C2 extends C1 {}
     }
 
     @Test
     public void interfaceWithOneExplicitAnnotationIsCorrect() {
         Asserts.collectionsContained(
-                classpathMD.getClassMD(name(I1.class)).getMD(annotations),
-                newHashSet(
-                        name(AI1.class)
-                ));
+                toTypes(classpathMD.getType(className(I1.class)).getAnnotations()),
+                newHashSet(className(AI1.class)
+        ));
     }
 
     @Test
     public void interfaceWithTwoExplicitAnnotationsIsCorrect() {
         Asserts.collectionsContained(
-                classpathMD.getClassMD(name(I12.class)).getMD(annotations),
+                toTypes(classpathMD.getType(className(I12.class)).getAnnotations()),
                 newHashSet(
-                        name(AI1.class),
-                        name(AI2.class)
+                        className(AI1.class),
+                        className(AI2.class)
                 ));
     }
 
     @Test
     public void interfaceWithMetaAnnotationsIsCorrect() {
         Asserts.collectionsContained(
-                classpathMD.getClassMD(name(I3.class)).getMD(annotations),
+                toTypes(classpathMD.getType(className(I3.class)).getAnnotations()),
                 newHashSet(
-                        name(AI3.class),
-                        name(MAI3.class)
+                        className(AI3.class),
+                        className(MAI3.class)
                 ));
     }
 
     @Test
     public void interfaceWithInheritedMetaAnnotationsIsCorrect() {
         Asserts.collectionsContained(
-                classpathMD.getClassMD(name(I4.class)).getMD(annotations),
+                toTypes(classpathMD.getType(className(I4.class)).getAnnotations()),
                 concat(
-                        newHashSet(name(AI4.class)),
-                        classpathMD.getClassMD(name(I3.class)).getMD(annotations)));
+                        newHashSet(className(AI4.class)),
+                        toTypes(classpathMD.getType(className(I3.class)).getAnnotations())));
     }
 
     @Test
     public void classWithInheritedAnnotationsFromInterfaceIsCorrect() {
         Asserts.collectionsContained(
-                classpathMD.getClassMD(name(C1.class)).getMD(annotations),
+                toTypes(classpathMD.getType(className(C1.class)).getAnnotations()),
                 concat(
-                        newHashSet(name(AC1.class)),
-                        classpathMD.getClassMD(name(I4.class)).getMD(annotations)));
+                        newHashSet(className(AC1.class)),
+                        toTypes(classpathMD.getType(className(I4.class)).getAnnotations())));
     }
 
-    @Test public void classWithInheritedAnnotationsFromSuperclassIsCorrect() {
-        Asserts.collectionsContained(
-                classpathMD.getClassMD(name(C2.class)).getMD(annotations),
-                classpathMD.getClassMD(name(C1.class)).getMD(annotations));
+    @Test
+    public void classWithInheritedAnnotationsFromSuperclassIsCorrect() {
+        Assert.assertTrue(
+            classpathMD.getType(className(C2.class)).getAnnotations()
+                    .containsAll(classpathMD.getType(className(C1.class)).getAnnotations()));
     }
-
-    protected static String name(Class<?> aClass) {return aClass.getName();}
-
 }

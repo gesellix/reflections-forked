@@ -3,8 +3,8 @@ package org.reflections.tests;
 import org.junit.Test;
 import org.junit.Assert;
 import org.reflections.helper.ClasspathHelper;
+import org.reflections.helper.DescriptorHelper;
 import static org.reflections.helper.ClasspathHelper.getClassLoader;
-import static org.reflections.helper.ClasspathHelper.qNameToResourceName;
 
 import java.net.URL;
 import java.util.Set;
@@ -12,7 +12,6 @@ import java.util.Set;
 /**
  * @author mamo
  */
-
 //todo:
 public class ClasspathHelperTest {
 
@@ -22,7 +21,7 @@ public class ClasspathHelperTest {
         final Set<URL> forPackagePrefix = ClasspathHelper.getUrlsForPackagePrefix(packagePrefix);
 
         Assert.assertTrue(
-                getClassLoader().getResource(qNameToResourceName(packagePrefix))
+                getClassLoader().getResource(DescriptorHelper.qNameToResourceName(packagePrefix))
                 .equals(forPackagePrefix.toArray()[0]));
     }
 

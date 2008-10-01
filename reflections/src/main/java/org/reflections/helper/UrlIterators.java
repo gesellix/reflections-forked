@@ -33,20 +33,19 @@ public abstract class UrlIterators {
         return null;
     }
 
-    public static Iterator<DataInputStream> createStreamIterator(final URL url, final Filters.Filter<String> filter) {
+    public static Iterator<DataInputStream> createStreamIterator(final URL url, final Filters.Filter<String>... filters) {
+        if (filters.length==0) {return createStreamIterator(url);}
+
+        final Filters.Filter<String> aggregation = new Filters.Aggregation(filters);
 
         try {
-            if (isDirectory(url)) {
-                return new DirStreamIterator(new File(url.toURI())) {
-                    public boolean accepts(final String name) {return filter.accepts(name);}
-                };
-            }
+            if (isDirectory(url)) {return new DirStreamIterator(new File(url.toURI())) {
+                public boolean accepts(final String name) {return aggregation.accepts(name);}
+                };}
 
-            if (isJar(url)) {
-                return new JarStreamIterator(new JarFile(new File(url.toURI()))) {
-                    public boolean accepts(final String name) {return filter.accepts(name);}
-                };
-            }
+            if (isJar(url)) {return new JarStreamIterator(new JarFile(new File(url.toURI()))) {
+                public boolean accepts(final String name) {return aggregation.accepts(name);}
+                };}
         } catch (Exception e) {
             throw new RuntimeException(e); //todo: better log
         }
@@ -58,6 +57,24 @@ public abstract class UrlIterators {
         try {
             if (isDirectory(url)) {return new DirNamesIterator(new File(url.toURI()));}
             if (isJar(url)) {return new JarNamesIterator(new JarFile(url.toURI().getPath()));}
+        } catch (Exception e) {
+            throw new RuntimeException(e); //todo: better log
+        }
+
+        return null;
+    }
+
+    public static Iterator<String> createNamesIterator(final URL url, final Filters.Filter<String>... filters) {
+        if (filters.length==0) {return createNamesIterator(url);}
+
+        final Filters.Filter<String> aggregation = new Filters.Aggregation(filters);
+        try {
+            if (isDirectory(url)) {return new DirNamesIterator(new File(url.toURI())) {
+                public boolean accepts(final String name) {return aggregation.accepts(name);}
+            };}
+            if (isJar(url)) {return new JarNamesIterator(new JarFile(url.toURI().getPath())) {
+                public boolean accepts(final String name) {return aggregation.accepts(name);}
+            };}
         } catch (Exception e) {
             throw new RuntimeException(e); //todo: better log
         }

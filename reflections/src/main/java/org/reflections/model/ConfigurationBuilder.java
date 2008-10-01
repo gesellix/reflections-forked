@@ -47,7 +47,7 @@ public enum ConfigurationBuilder {
                     for (StackTraceElement stackTraceElement : Iterables.cycle(Thread.currentThread().getStackTrace())) {
                         final String className = stackTraceElement.getClassName();
                         if (!className.startsWith("org.reflections") && !className.startsWith("java.lang")
-                                || className.startsWith("org.reflections.tests") /*sorry about that, this is for test purposes*/)
+                                || className.startsWith("org.reflections.tests")) // sorry about that, this is for test purposes
                         {
                             callee = className;
                             break;
@@ -59,7 +59,7 @@ public enum ConfigurationBuilder {
 //                            .setScanSources(true);
                 }
             },
-    ////
+    //
     Transitive
             {
                 @Override
@@ -80,7 +80,7 @@ public enum ConfigurationBuilder {
                 public Configuration build(Configuration configuration) {
                     return configuration
                             .addElementTypesToScan(annotations)
-                            .addInvertedElementTypes(annotations);
+                            .addReverseElementTypes(annotations);
                 }
             },
     ExcludeAll
@@ -104,12 +104,9 @@ public enum ConfigurationBuilder {
     public abstract Configuration build(Configuration configuration);
 
     public static Configuration build(ConfigurationBuilder... builders) {
-        //noinspection deprecation
-        final Configuration configuration = new Configuration() {
-        };
-        for (ConfigurationBuilder builder : builders) {
-            builder.build(configuration);
-        }
+        final Configuration configuration = new Configuration() {};
+
+        for (ConfigurationBuilder builder : builders) {builder.build(configuration);}
 
         return configuration;
     }
