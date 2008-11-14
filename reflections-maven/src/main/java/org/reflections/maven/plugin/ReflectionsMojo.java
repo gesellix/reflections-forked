@@ -1,6 +1,5 @@
 package org.reflections.maven.plugin;
 
-import com.google.common.collect.Sets;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.codehaus.plexus.util.StringUtils;
@@ -9,54 +8,39 @@ import org.jfrog.maven.annomojo.annotations.MojoGoal;
 import org.jfrog.maven.annomojo.annotations.MojoParameter;
 import org.jfrog.maven.annomojo.annotations.MojoPhase;
 import org.reflections.Reflections;
-import org.reflections.helper.ClasspathHelper;
-import org.reflections.model.Configuration;
-import org.reflections.model.ElementTypes;
+import org.reflections.adapters.JavassistAdapter;
+import org.reflections.filters.*;
+import org.reflections.scanners.ClassAnnotationsScanner;
+import org.reflections.scanners.Scanner;
+import org.reflections.scanners.SubTypesScanner;
+import org.reflections.util.AbstractConfiguration;
 
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Set;
-import java.util.regex.Pattern;
+import java.util.*;
 
 /**
- * A Maven Mojo that
  *
- * @author mamo
  */
 @MojoGoal("reflections")
 @MojoPhase("process-classes")
 public class ReflectionsMojo extends MvnInjectableMojoSupport {
 
-    @MojoParameter(description = "a comma separated list of org.reflections.model.ElementTypes to scan for each class"
-            , defaultValue = "annotations")
-    private String elementTypesToScan;
+    @MojoParameter(description = "a comma separated list of scanner classes"
+            , defaultValue = ClassAnnotationsScanner.indexName+","+ SubTypesScanner.indexName)
+    private String scanners;
 
-    @MojoParameter(description = "a comma separated list of org.reflections.model.ElementTypes to compute inverted indices for"
-            , defaultValue = "annotations")
-    private String invertedElementTypes;
-
-    @MojoParameter(description = "should compute transitive closure for classes metadata")
-    private boolean computeTransitiveClosure;
+    @MojoParameter(description = "a comma separated list of include exclude filters"
+            , defaultValue = "-java., -javax., -sun., -com.sun.")
+    private String includeExclude;
 
     @MojoParameter(description = "a comma separated list of destinations to save metadata to"
             , defaultValue = "${project.build.outputDirectory}/META-INF/reflections/${project.artifactId}-reflections.xml")
     private String destinations;
 
-    @MojoParameter(description = "a comma separated list of regex that will be used from classes and metadata exclusions"
-            , defaultValue = "java\\. , javax\\. , sun\\. , com.sun\\.")
-    private String excludePatternStrings;
-
-    @MojoParameter(description = "a comma separated list of regex that will be used from classes and metadata inclusions")
-    private String includePatternStrings;
-
     public void execute() throws MojoExecutionException, MojoFailureException {
         //
-        if (StringUtils.isEmpty(destinations)) {
-            getLog().warn("no destination was specified. nothing to do, than...");
-            return;
-        }
-
         if (StringUtils.isEmpty(destinations)) {
             getLog().error("Reflections plugin is skipping because it should have been configured with a non empty destinations parameter");
             return;
@@ -69,69 +53,77 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
         }
 
         //
-        Reflections reflections = new Reflections() {}
-                .setConfiguration(Configuration
-                        .build()
-                        .addUrls(getOutputDirUrl())
-                        .addElementTypesToScan(parseElementTypesToScan())
-                        .setComputeTransitiveClosure(computeTransitiveClosure)
-                        .addReverseElementTypes(parseInvertedElementTypesToScan())
-                        .addExcludePatterns(parseExcludePatterns())
-                        .addIncludePatterns(parseIncludePatterns())
-                );
+        Reflections reflections = new Reflections(
+                new AbstractConfiguration() {
+                    {
+                        setUrls(Arrays.asList(parseOutputDirUrl()));
+                        setScanners(parseScanners());
+                        setFilter(parseFilters());
+                        setMetadataAdapter(new JavassistAdapter());
+                    }
+                });
 
         for (String destination : parseDestinations()) {
             reflections.save(destination.trim());
         }
     }
 
-    private Pattern[] parseExcludePatterns() {
-        return parsePatterns(excludePatternStrings);
+    private Filter<String> parseFilters() throws MojoExecutionException {
+        List<IncludeExcludeFilter<String>> filters = new ArrayList<IncludeExcludeFilter<String>>();
+
+        if (StringUtils.isNotEmpty(includeExclude)) {
+            for (String string : includeExclude.split(",")) {
+                String trimmed = string.trim();
+                char prefix = trimmed.charAt(0);
+                String pattern = trimmed.substring(1);
+
+                IncludeExcludeFilter<String> filter;
+                switch (prefix) {
+                    case '+':
+                        filter = new IncludePrefix(pattern);
+                        break;
+                    case '-':
+                        filter = new ExcludePrefix(pattern);
+                        break;
+                    default:
+                        throw new MojoExecutionException("includeExclude should start with either + or -");
+                }
+
+                filters.add(filter);
+            }
+
+            return new IncludeExcludeChain<String>(filters);
+        } else {
+            return new Any<String>();
+        }
     }
 
-    private Pattern[] parseIncludePatterns() {
-        return parsePatterns(includePatternStrings);
-    }
+    private Scanner[] parseScanners() throws MojoExecutionException {
+        Set<Scanner> scannersSet = new HashSet<Scanner>(0);
 
-    private Pattern[] parsePatterns(final String strings) {
-        Set<Pattern> patterns = Sets.newHashSet();
+        if (StringUtils.isNotEmpty(scanners)) {
+            String[] scannerClasses = scanners.split(",");
+            for (String scannerClass : scannerClasses) {
+                String trimmed = scannerClass.trim();
+                String className = "org.reflections.scanners." + trimmed + "Scanner";
 
-        if (StringUtils.isNotEmpty(strings)) {
-            final String[] patternStrings = strings.split(",");
-            for (String patternString : patternStrings) {
-                patterns.add(ClasspathHelper.getPatternForFqnPrefix(patternString));
+                try {
+                    Scanner scanner = (Scanner) Class.forName(className).newInstance();
+                    scannersSet.add(scanner);
+                } catch (Exception e) {
+                    throw new MojoExecutionException(String.format("could not find scanner %s [%s]",trimmed,scannerClass), e);
+                }
             }
         }
-        
-        return patterns.toArray(new Pattern[patterns.size()]);
+
+        return scannersSet.toArray(new Scanner[scannersSet.size()]);
     }
 
     private String[] parseDestinations() {
         return destinations.split(",");
     }
 
-    private ElementTypes[] parseElementTypesToScan() throws MojoExecutionException {
-        return parseElementTypes(elementTypesToScan);
-    }
-
-    private ElementTypes[] parseInvertedElementTypesToScan() throws MojoExecutionException {
-        return parseElementTypes(invertedElementTypes);
-    }
-
-    private ElementTypes[] parseElementTypes(final String elementTypesParameter) {
-        if (StringUtils.isEmpty(elementTypesParameter)) {return null;}
-
-        String[] types = elementTypesParameter.split(",");
-        ElementTypes[] elementTypes = new ElementTypes[types.length];
-
-        for (int i = 0; i < elementTypes.length; i++) {
-            elementTypes[i] = ElementTypes.valueOf(types[i]);
-        }
-
-        return elementTypes;
-    }
-
-    private URL getOutputDirUrl() throws MojoExecutionException {
+    private URL parseOutputDirUrl() throws MojoExecutionException {
         try {
             File outputDirectoryFile = new File(getProject().getBuild().getOutputDirectory() + "/");
             return outputDirectoryFile.toURI().toURL();
