@@ -7,6 +7,8 @@ import java.util.List;
  */
 @SuppressWarnings({"unchecked"})
 public class MethodParametersAnnotationsScanner extends AbstractScanner {
+    public static final String indexName = "MethodParametersAnnotations";
+
     public void scan(final Object cls) {
         String className = getMetadataAdapter().getClassName(cls);
 
@@ -25,6 +27,6 @@ public class MethodParametersAnnotationsScanner extends AbstractScanner {
     }
 
     public String getIndexName() {
-        return "MethodParametersAnnotations";
+        return indexName;
     }
 }

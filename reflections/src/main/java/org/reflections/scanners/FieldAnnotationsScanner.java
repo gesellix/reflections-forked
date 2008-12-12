@@ -7,6 +7,8 @@ import java.util.List;
  */
 @SuppressWarnings({"unchecked"})
 public class FieldAnnotationsScanner extends AbstractScanner {
+    public static final String indexName = "FieldAnnotations";
+
     public void scan(final Object cls) {
         String className = getMetadataAdapter().getClassName(cls);
 

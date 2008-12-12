@@ -11,6 +11,7 @@ import org.reflections.util.AbstractConfiguration;
 import org.reflections.util.ClasspathHelper;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
@@ -28,7 +29,6 @@ public class ReflectionsTest {
                     new ClassAnnotationsScanner(),
                     new FieldAnnotationsScanner(),
                     new MethodAnnotationsScanner(),
-                    new MethodParametersAnnotationsScanner(),
                     new ConvertersScanner(TestModel.C2.class, TestModel.C3.class));
 
             setUrls(Arrays.asList(ClasspathHelper.getUrlForClass(TestModel.class)));
@@ -44,7 +44,7 @@ public class ReflectionsTest {
         Assert.assertTrue(
                 collectionsContained(
                         reflections.getSubTypesOf(TestModel.I1.class),
-                        Arrays.<Class<?>>asList(
+                        Arrays.<Class<? extends TestModel.I1>>asList(
                                 TestModel.I2.class,
                                 TestModel.C1.class,
                                 TestModel.C2.class,
@@ -116,6 +116,32 @@ public class ReflectionsTest {
         try {
             Assert.assertTrue(
                 collectionsContained(
+                        reflections.getFieldsAnnotatedWith(TestModel.AF1.class),
+                        Arrays.<Field>asList(
+                                TestModel.C4.class.getDeclaredField("f1"),
+                                TestModel.C4.class.getDeclaredField("f2")
+                        )));
+        } catch (NoSuchFieldException e) {
+            Assert.fail();
+        }
+
+        try {
+            Assert.assertTrue(
+                collectionsContained(
+                        reflections.getFieldsAnnotatedWith(new TestModel.AF1() {
+                            public String value() {return "2";}
+                            public Class<? extends Annotation> annotationType() {return TestModel.AF1.class;}
+                        }),
+                        Arrays.<Field>asList(
+                                TestModel.C4.class.getDeclaredField("f2")
+                        )));
+        } catch (NoSuchFieldException e) {
+            Assert.fail();
+        }
+
+        try {
+            Assert.assertTrue(
+                collectionsContained(
                         reflections.getConverters(TestModel.C2.class, TestModel.C3.class),
                         Arrays.<Method>asList(
                                 TestModel.C4.class.getMethod("c2toC3", TestModel.C2.class)
@@ -127,7 +153,8 @@ public class ReflectionsTest {
 
     @Test
     public void collect() {
-        new Reflections(ClasspathHelper.getUrlsForPackagePrefix("META-INF/reflections"),
+        Reflections reflections = new Reflections(
+                ClasspathHelper.getUrlsForPackagePrefix("META-INF/reflections"),
                 new PatternFilter("META-INF/reflections/.*\\-reflections.xml"));
 
         //well, not a test really...

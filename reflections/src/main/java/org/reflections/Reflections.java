@@ -14,6 +14,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.*;
@@ -76,10 +77,16 @@ public class Reflections {
         }
     }
 
+    /**
+     * merges a Reflections instance into this one
+     */
     public void merge(final Reflections reflections) {
         store.merge(reflections.store);
     }
 
+    /**
+     * saves the store into a given destination as xml file
+     */
     public void save(final String destination) {
         try {
             String xml = new XStream().toXML(store);
@@ -90,16 +97,27 @@ public class Reflections {
     }
 
     //query
-    public <T> Set<Class<?>> getSubTypesOf(Class<T> type) {
-        return forNames(getSubTypesClosure(type.getName()));
+
+    /**
+     * gets all sub types in hierarchy of a given type
+     *
+     * depends on SubTypesScanner configured, otherwise an empty set is returned
+     */
+    public <T> Set<Class<? extends T>> getSubTypesOf(Class<T> type) {
+        return Utils.<T>forNames(getAllSubTypesInHierarchy(type.getName()));
     }
 
+    /**
+     * get all types annotated with a given annotation class in hierarchy
+     *
+     * depends on ClassAnnotationsScanner configured, otherwise an empty set is returned
+     */
     public Set<Class<?>> getTypesAnnotatedWith(Class<? extends Annotation> annotation) {
         Set<String> result = new HashSet<String>();
 
-        for (String aClass : getAnnotatedWithClosure(annotation.getName())) {
+        for (String aClass : getAllAnnotatedWithInHierarchy(annotation.getName())) {
             result.add(aClass);
-            Set<String> subTypes = getSubTypesClosure(aClass);
+            Set<String> subTypes = getAllSubTypesInHierarchy(aClass);
             if (!subTypes.isEmpty()) {
                 result.addAll(subTypes);
             }
@@ -108,6 +126,12 @@ public class Reflections {
         return forNames(result);
     }
 
+    /**
+     * get all types annotated with a given annotation instance in hierarchy
+     * including annotation member values matching
+     *
+     * depends on ClassAnnotationsScanner configured, otherwise an empty set is returned
+     */
     public Set<Class<?>> getTypesAnnotatedWith(Annotation annotation) {
         Set<Class<?>> result = new HashSet<Class<?>>();
 
@@ -124,6 +148,11 @@ public class Reflections {
         return result;
     }
 
+    /**
+     * get all methods annotated with a given annotation class
+     *
+     * depends on MethodAnnotationsScanner configured, otherwise an empty set is returned 
+     */
     public Set<Method> getMethodsAnnotatedWith(Class<? extends Annotation> annotation) {
         Set<Method> result = new HashSet<Method>();
 
@@ -137,6 +166,12 @@ public class Reflections {
         return result;
     }
 
+    /**
+     * get all methods annotated with a given annotation instance
+     * including annotation member values matching
+     *
+     * depends on ClassAnnotationsScanner configured, otherwise an empty set is returned
+     */
     public Set<Method> getMethodsAnnotatedWith(Annotation annotation) {
         Set<Method> result = new HashSet<Method>();
 
@@ -153,10 +188,58 @@ public class Reflections {
         return result;
     }
 
+    /**
+     * get all fields annotated with a given annotation class
+     *
+     * depends on FieldAnnotationsScanner configured, otherwise an empty set is returned
+     */
+    public Set<Field> getFieldsAnnotatedWith(Class<? extends Annotation> annotation) {
+        Set<Field> result = new HashSet<Field>();
+
+        Set<String> annotatedWith = store.get(FieldAnnotationsScanner.indexName).get(annotation.getName());
+
+        if (annotatedWith != null) {
+            for (String annotated : annotatedWith) {
+                result.add(getFieldFromString(annotated));
+            }
+        }
+        return result;
+    }
+
+    /**
+     * get all methods annotated with a given annotation instance
+     * including annotation member values matching
+     *
+     * depends on ClassAnnotationsScanner configured, otherwise an empty set is returned
+     */
+    public Set<Field> getFieldsAnnotatedWith(Annotation annotation) {
+        Set<Field> result = new HashSet<Field>();
+
+        final Class<? extends Annotation> annotationType = annotation.annotationType();
+        final Set<Field> annotatedWith = getFieldsAnnotatedWith(annotationType);
+        final Map<String, Object> annotationMap = getAnnotationMap(annotation);
+
+        for (Field annotated : annotatedWith) {
+            if (annotationMap.equals(getAnnotationMap(annotated.getAnnotation(annotationType)))) {
+                result.add(annotated);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * gets all 'converter' methods - that is methods that could effectively convert from type 'from' to type 'to'
+     * @param from - the one and only parameter indicating the type to convert from
+     * @param to - the required return type
+     *
+     * depends on ConvertersScanner configured, otherwise an empty set is returned
+     */
     public Set<Method> getConverters(final Class<?> from, final Class<?> to) {
         Set<Method> result = new HashSet<Method>();
 
-        Set<String> converters = store.get(ConvertersScanner.indexName).get(ConvertersScanner.getConverterKey(from, to));
+        String converterKey = ConvertersScanner.getConverterKey(from, to);
+        Set<String> converters = store.get(ConvertersScanner.indexName).get(converterKey);
 
         for (String converter : converters) {
             result.add(getMethodFromString(converter));
@@ -165,8 +248,25 @@ public class Reflections {
         return result;
     }
 
+    /**
+     * gets all values in the store, for a given scanner class and a key
+     * if the scanner was not configured an empty set is returned
+     *
+     * @param scannerClass - any scanner class that was previously configured
+     */
+    public Set<String> getFromStore(final Class<? extends Scanner> scannerClass, String key) {
+        Scanner[] scanners = configuration.getScanners();
+        for (Scanner scanner : scanners) {
+            if (scanner.getClass().isAssignableFrom(scannerClass)) {
+                return store.get(scanner.getIndexName()).get(key);
+            }
+        }
+
+        return new HashSet<String>(0);
+    }
+
     //
-    protected Set<String> getAnnotatedWithClosure(String annotation) {
+    protected Set<String> getAllAnnotatedWithInHierarchy(String annotation) {
         Set<String> result = new HashSet<String>();
 
         Set<String> annotatedWith = store.get(ClassAnnotationsScanner.indexName).get(annotation);
@@ -174,21 +274,21 @@ public class Reflections {
         if (annotatedWith!=null) {
             result.addAll(annotatedWith);
             for (String aClass : result) {
-                result.addAll(getAnnotatedWithClosure(aClass));
+                result.addAll(getAllAnnotatedWithInHierarchy(aClass));
             }
         }
 
         return result;
     }
 
-    protected Set<String> getSubTypesClosure(final String type) {
+    protected Set<String> getAllSubTypesInHierarchy(final String type) {
         Set<String> result = new HashSet<String>();
 
         Set<String> subTypes = store.get(SubTypesScanner.indexName).get(type);
         if (subTypes!=null) {
             result.addAll(subTypes);
             for (String aClass : result) {
-                result.addAll(getSubTypesClosure(aClass));
+                result.addAll(getAllSubTypesInHierarchy(aClass));
             }
         }
 
@@ -211,10 +311,21 @@ public class Reflections {
         catch (NoSuchMethodException e) {throw new RuntimeException(e);}
     }
 
+    protected Field getFieldFromString(String field) {
+        String className = field.substring(0, field.lastIndexOf('.'));
+        String fieldName = field.substring(field.lastIndexOf('.') + 1);
+
+        try {
+            return Class.forName(className).getDeclaredField(fieldName);
+        }
+        catch (ClassNotFoundException e) {throw new RuntimeException(e);}
+        catch (NoSuchFieldException e) {throw new RuntimeException(e);}
+    }
+
     /**
      * returns a map where keys are annotation's method name and value is the returned value from that method
      */
-    protected Map<String/*parameter name*/, Object/*value*/> getAnnotationMap(Annotation annotation) {
+   protected Map<String/*parameter name*/, Object/*value*/> getAnnotationMap(Annotation annotation) {
         final Method[] methods = annotation.annotationType().getDeclaredMethods();
         Map<String, Object> parameters = new HashMap<String, Object>(methods.length);
         for (final Method method : methods) {

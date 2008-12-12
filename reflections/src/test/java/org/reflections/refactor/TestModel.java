@@ -30,6 +30,7 @@ public interface TestModel {
     public class C4 {
         @AF1("1") private String f1;
         @AF1("2") protected String f2;
+        protected String f3;
 
         @AM1("1") public void m1() {}
         @AM1("1") public void m2(int integer, String... string) {}

@@ -1,8 +1,9 @@
 package org.reflections.util;
 
 import org.reflections.Configuration;
-import org.reflections.adapters.MetadataAdapter;
 import org.reflections.adapters.JavassistAdapter;
+import org.reflections.adapters.MetadataAdapter;
+import org.reflections.filters.Any;
 import org.reflections.filters.Filter;
 import org.reflections.scanners.Scanner;
 
@@ -17,7 +18,7 @@ public class AbstractConfiguration implements Configuration {
     private Scanner[] scanners;
     private Collection<URL> urls;
     private MetadataAdapter metadataAdapter = new JavassistAdapter();
-    private Filter<String> filter;
+    private Filter<String> filter = new Any<String>();
 
     public Scanner[] getScanners() {
         return scanners;
