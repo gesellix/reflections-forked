@@ -1,12 +1,14 @@
 package org.reflections;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  *
  */
 public class Store {
-    private final Map<String/*indexName*/, Map<String/*key*/,Set<String>/*values*/>> store = 
+    private final Map<String/*indexName*/, Map<String/*key*/, Set<String/*values*/>>> store =
             new HashMap<String, Map<String, Set<String>>>();
 
     public Map<String, Set<String>> get(String indexName) {

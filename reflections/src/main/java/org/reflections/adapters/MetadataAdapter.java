@@ -1,10 +1,7 @@
 package org.reflections.adapters;
 
-import org.reflections.filters.Filter;
-
 import java.net.URL;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -19,7 +16,7 @@ public interface MetadataAdapter<C,F,M> {
 
     List<String> getInterfacesNames(final C cls);
 
-    Iterator<C> iterateClasses(final Collection<URL> urls, final Filter<String> filters);
+    Iterable<C> iterateClasses(final Collection<URL> urls);
 
     //
     List<F> getFields(final C cls);

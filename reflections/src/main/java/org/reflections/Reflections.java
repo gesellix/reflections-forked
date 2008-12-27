@@ -1,13 +1,12 @@
 package org.reflections;
 
 import com.thoughtworks.xstream.XStream;
-import org.reflections.filters.Any;
 import org.reflections.filters.Filter;
 import org.reflections.scanners.*;
 import org.reflections.scanners.Scanner;
 import org.reflections.util.ClasspathHelper;
-import org.reflections.util.DescriptorHelper;
 import org.reflections.util.Utils;
+import org.reflections.util.DescriptorHelper;
 import static org.reflections.util.Utils.forNames;
 
 import java.io.File;
@@ -39,6 +38,12 @@ public class Reflections {
         this.configuration = configuration;
         store = new Store();
 
+        //inject to store instances
+        for (Scanner scanner : configuration.getScanners()) {
+            scanner.setConfiguration(configuration);
+            scanner.setStore(store.get(scanner.getIndexName()));
+        }
+
         scan();
     }
 
@@ -59,18 +64,9 @@ public class Reflections {
     //
     @SuppressWarnings({"unchecked"})
     protected void scan() {
-        //inject
-        for (Scanner scanner : configuration.getScanners()) {
-            scanner.setConfiguration(configuration);
-            scanner.setStore(store.get(scanner.getIndexName()));
-        }
+        Iterable<Object> classesIterator = configuration.getMetadataAdapter().iterateClasses(configuration.getUrls());
 
-        //scan classes
-        Iterator<Object> classesIterator = configuration.getMetadataAdapter().iterateClasses(configuration.getUrls(), new Any<String>());
-
-        while (classesIterator.hasNext()) {
-            Object cls = classesIterator.next();
-
+        for (Object cls : classesIterator) {
             for (Scanner scanner : configuration.getScanners()) {
                 scanner.scan(cls);
             }
@@ -104,6 +100,7 @@ public class Reflections {
      * depends on SubTypesScanner configured, otherwise an empty set is returned
      */
     public <T> Set<Class<? extends T>> getSubTypesOf(Class<T> type) {
+        //noinspection RedundantTypeArguments
         return Utils.<T>forNames(getAllSubTypesInHierarchy(type.getName()));
     }
 
@@ -229,43 +226,43 @@ public class Reflections {
     }
 
     /**
-     * gets all 'converter' methods - that is methods that could effectively convert from type 'from' to type 'to'
-     * @param from - the one and only parameter indicating the type to convert from
-     * @param to - the required return type
+     * get 'converter' methods that could effectively convert from type 'from' to type 'to'
      *
-     * depends on ConvertersScanner configured, otherwise an empty set is returned
+     * @param from - the one and only parameter indicating the type to convert from
+     * @param to   - the required return type
+     *             <p/>
+     *             depends on ConvertersScanner configured, otherwise an empty set is returned
      */
     public Set<Method> getConverters(final Class<?> from, final Class<?> to) {
         Set<Method> result = new HashSet<Method>();
 
         String converterKey = ConvertersScanner.getConverterKey(from, to);
-        Set<String> converters = store.get(ConvertersScanner.indexName).get(converterKey);
 
-        for (String converter : converters) {
+        for (String converter : store.get(ConvertersScanner.indexName).get(converterKey)) {
             result.add(getMethodFromString(converter));
         }
 
         return result;
     }
 
-    /**
-     * gets all values in the store, for a given scanner class and a key
-     * if the scanner was not configured an empty set is returned
-     *
-     * @param scannerClass - any scanner class that was previously configured
-     */
-    public Set<String> getFromStore(final Class<? extends Scanner> scannerClass, String key) {
-        Scanner[] scanners = configuration.getScanners();
-        for (Scanner scanner : scanners) {
-            if (scanner.getClass().isAssignableFrom(scannerClass)) {
-                return store.get(scanner.getIndexName()).get(key);
+    //
+    protected Set<String> getAllSubTypesInHierarchy(final String type) {
+        Set<String> result = new HashSet<String>();
+
+        Set<String> subTypes = store.get(SubTypesScanner.indexName).get(type);
+        if (subTypes!=null) {
+            result.addAll(subTypes);
+
+            Set<String> subResult = new HashSet<String>();
+            for (String aClass : result) {
+                subResult.addAll(getAllSubTypesInHierarchy(aClass));
             }
+            result.addAll(subResult);
         }
 
-        return new HashSet<String>(0);
+        return result;
     }
 
-    //
     protected Set<String> getAllAnnotatedWithInHierarchy(String annotation) {
         Set<String> result = new HashSet<String>();
 
@@ -281,21 +278,21 @@ public class Reflections {
         return result;
     }
 
-    protected Set<String> getAllSubTypesInHierarchy(final String type) {
-        Set<String> result = new HashSet<String>();
-
-        Set<String> subTypes = store.get(SubTypesScanner.indexName).get(type);
-        if (subTypes!=null) {
-            result.addAll(subTypes);
-            for (String aClass : result) {
-                result.addAll(getAllSubTypesInHierarchy(aClass));
-            }
+    /**
+     * returns a map where keys are annotation's method name and value is the returned value from that method
+     */
+   protected Map<String/*parameter name*/, Object/*value*/> getAnnotationMap(Annotation annotation) {
+        final Method[] methods = annotation.annotationType().getDeclaredMethods();
+        Map<String, Object> parameters = new HashMap<String, Object>(methods.length);
+        for (final Method method : methods) {
+            try {parameters.put(method.getName(), method.invoke(annotation));}
+            catch (Exception e) {throw new RuntimeException(e);}
         }
 
-        return result;
+        return parameters;
     }
 
-    protected Method getMethodFromString(String method) {
+    protected static Method getMethodFromString(String method) {
         String fullName = method.substring(0, method.indexOf(" "));
         String className = fullName.substring(0,fullName.lastIndexOf("."));
         String methodName = fullName.substring(className.length() + 1);
@@ -311,7 +308,7 @@ public class Reflections {
         catch (NoSuchMethodException e) {throw new RuntimeException(e);}
     }
 
-    protected Field getFieldFromString(String field) {
+    protected static Field getFieldFromString(String field) {
         String className = field.substring(0, field.lastIndexOf('.'));
         String fieldName = field.substring(field.lastIndexOf('.') + 1);
 
@@ -320,19 +317,5 @@ public class Reflections {
         }
         catch (ClassNotFoundException e) {throw new RuntimeException(e);}
         catch (NoSuchFieldException e) {throw new RuntimeException(e);}
-    }
-
-    /**
-     * returns a map where keys are annotation's method name and value is the returned value from that method
-     */
-   protected Map<String/*parameter name*/, Object/*value*/> getAnnotationMap(Annotation annotation) {
-        final Method[] methods = annotation.annotationType().getDeclaredMethods();
-        Map<String, Object> parameters = new HashMap<String, Object>(methods.length);
-        for (final Method method : methods) {
-            try {parameters.put(method.getName(), method.invoke(annotation));}
-            catch (Exception e) {throw new RuntimeException(e);}
-        }
-
-        return parameters;
     }
 }

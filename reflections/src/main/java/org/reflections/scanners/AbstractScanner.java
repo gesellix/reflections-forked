@@ -32,7 +32,7 @@ public abstract class AbstractScanner implements Scanner {
     }
 
     protected boolean accept(final String fqn) {
-        return configuration.getFilter().accept(fqn);
+        return fqn!=null && configuration.getFilter().accept(fqn);
     }
 
     protected <T> void multiRelaxAdd(final Map<T, Set<T>> map, final T key, final T... values) {

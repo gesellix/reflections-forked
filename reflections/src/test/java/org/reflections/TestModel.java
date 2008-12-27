@@ -1,4 +1,4 @@
-package org.reflections.refactor;
+package org.reflections;
 
 import java.lang.annotation.Retention;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;

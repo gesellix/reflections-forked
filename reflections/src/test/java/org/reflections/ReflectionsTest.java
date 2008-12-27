@@ -1,8 +1,7 @@
-package org.reflections.refactor;
+package org.reflections;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.reflections.Reflections;
 import org.reflections.filters.IncludeExcludeChain;
 import org.reflections.filters.IncludePrefix;
 import org.reflections.filters.PatternFilter;
@@ -20,6 +19,7 @@ import java.util.Collection;
  *
  */
 public class ReflectionsTest {
+    private static ConvertersScanner convertersScanner;
 
     @SuppressWarnings({"unchecked"})
     private static class TestConfiguration extends AbstractConfiguration {
@@ -29,7 +29,7 @@ public class ReflectionsTest {
                     new ClassAnnotationsScanner(),
                     new FieldAnnotationsScanner(),
                     new MethodAnnotationsScanner(),
-                    new ConvertersScanner(TestModel.C2.class, TestModel.C3.class));
+                    new ConvertersScanner());
 
             setUrls(Arrays.asList(ClasspathHelper.getUrlForClass(TestModel.class)));
 

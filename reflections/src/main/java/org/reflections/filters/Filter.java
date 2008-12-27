@@ -4,5 +4,5 @@ package org.reflections.filters;
  *
  */
 public interface Filter<T> {
-    boolean accept(T name);
+    boolean accept(T t);
 }

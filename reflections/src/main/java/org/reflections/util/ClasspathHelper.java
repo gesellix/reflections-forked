@@ -55,7 +55,6 @@ public abstract class ClasspathHelper {
 
     /**
      * the url that contains the given class.
-     * i.e., for java.lang.String you'll get the rt.jar
      */
     public static URL getUrlForClass(Class<?> aClass) {
         String className = aClass.getName();
@@ -97,7 +96,9 @@ public abstract class ClasspathHelper {
     }
 
     /**
-     * searches for resources accepted by the given resourceNameFilter within the givern urls.
+     * searches for resources accepted by the given resourceNameFilter within the given urls.
+     * each url is assumed to contain only one such file at most.
+     *
      * the urls provided might be the full classpath (getUrlsForCurrentClasspath), but it is better
      * to provide a narrowed list of urls using getUrlsForPackagePrefix
      */
