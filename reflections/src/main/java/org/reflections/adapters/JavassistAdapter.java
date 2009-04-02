@@ -2,13 +2,15 @@ package org.reflections.adapters;
 
 import javassist.bytecode.*;
 import javassist.bytecode.annotation.Annotation;
-import org.apache.log4j.Logger;
 import org.reflections.filters.Filter;
 import org.reflections.util.DescriptorHelper;
 import org.reflections.util.FluentIterable;
 import org.reflections.util.Transformer;
 import org.reflections.util.VirtualFile;
 import static org.reflections.util.VirtualFile.urls2VirtualFiles;
+import org.reflections.ReflectionsException;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -18,12 +20,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 /**
  *
  */
 public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, MethodInfo> {
-    private final static Logger log = Logger.getLogger(JavassistAdapter.class);
+	private static final Logger log = LoggerFactory.getLogger(JavassistAdapter.class);
+	private static final Pattern METHOD_PARAMS_PATTERN = Pattern.compile(".*\\((.*)\\).*");
 
     public List<FieldInfo> getFields(final ClassFile cls) {
         //noinspection unchecked
@@ -82,10 +87,13 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
 
     public String getMethodKey(final MethodInfo method) {
         String descriptor = method.getDescriptor();
-        String paramDescriptor = descriptor.substring(descriptor.indexOf("("), descriptor.lastIndexOf(")")+1);
+		Matcher matcher = METHOD_PARAMS_PATTERN.matcher(descriptor);
+		if (!matcher.matches()) {
+			throw new ReflectionsException("The regex pattern s probably wrong.");
+		}
+		String paramDescriptor = matcher.group(1);
 
-        String methodKey = String.format("%s %s", getMethodName(method), paramDescriptor);
-        return methodKey;
+		return String.format("%s %s", getMethodName(method), paramDescriptor);
     }
 
     //
@@ -130,26 +138,25 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
 
     //
     //filter only VirtualFiles that are .class files
-    private final static Filter<VirtualFile> classesOnly = new Filter<VirtualFile>() {
+	private static final Filter<VirtualFile> classesOnly = new Filter<VirtualFile>() {
         public boolean accept(final VirtualFile virtualFile) {
             return virtualFile.getName().endsWith(".class");
         }
     };
 
     //transform VirtualFile to ClassFile
-    private final static Transformer<VirtualFile, ClassFile> virtualFile2ClassFile = new Transformer<VirtualFile, ClassFile>() {
+	private static final Transformer<VirtualFile, ClassFile> virtualFile2ClassFile = new Transformer<VirtualFile, ClassFile>() {
         public ClassFile transform(final VirtualFile virtualFile) {
             BufferedInputStream bis = null;
-            try {
-                return new ClassFile(
-                        new DataInputStream(bis = new BufferedInputStream(virtualFile.getInputStream())));
+			try {
+				return new ClassFile(new DataInputStream(bis = new BufferedInputStream(virtualFile.getInputStream())));
             }
             catch (IOException e) {
                 log.warn(String.format("ignoring IOException while scanning %s", virtualFile.getName()));
                 return null;
             }
             finally {
-                if (bis != null) {try {bis.close();} catch (IOException e) {throw new RuntimeException(e);}}
+                if (bis != null) {try {bis.close();} catch (IOException e) {throw new ReflectionsException("Can't transform a virtual file to a class file.", e);}}
             }
         }
     };

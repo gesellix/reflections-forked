@@ -1,20 +1,21 @@
 package org.reflections.scanners;
 
+import com.google.common.collect.Multimap;
 import org.reflections.Configuration;
-
-import java.util.Set;
-import java.util.Map;
+import org.reflections.filters.Filter;
 
 /**
  *
  */
 public interface Scanner {
 
-    void scan(final Object cls);
+	void scan(final Object cls);
 
-    void setConfiguration(Configuration configuration);
+	void setConfiguration(Configuration configuration);
 
-    void setStore(Map<String, Set<String>> store);
+	void setStore(Multimap<String, String> store);
 
-    String getIndexName();
+	String getIndexName();
+
+	Scanner filterBy(Filter<String> filter);
 }

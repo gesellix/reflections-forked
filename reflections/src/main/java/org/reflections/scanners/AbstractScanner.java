@@ -1,54 +1,48 @@
 package org.reflections.scanners;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multimap;
 import org.reflections.Configuration;
+import org.reflections.filters.Filter;
+import org.reflections.filters.Any;
 import org.reflections.adapters.MetadataAdapter;
-
-import java.util.Set;
-import java.util.Map;
-import java.util.HashSet;
 
 /**
  *
  */
 @SuppressWarnings({"RawUseOfParameterizedType", "unchecked"})
 public abstract class AbstractScanner implements Scanner {
-    private Configuration configuration;
-    protected Map<String, Set<String>> store;
 
-    public void setConfiguration(final Configuration configuration) {
-        this.configuration = configuration;
-    }
+	private Configuration configuration;
+	private Multimap<String, String> store;
+	private Filter<String> filter = Any.ANY;
 
-    public void setStore(final Map<String, Set<String>> store) {
-        this.store = store;
-    }
+	public Scanner filterBy(Filter<String> filter) {
+		this.filter = filter;
+		return this;
+	}
 
-    protected MetadataAdapter getMetadataAdapter() {
-        return configuration.getMetadataAdapter();
-    }
+	public void setConfiguration(final Configuration configuration) {
+		this.configuration = configuration;
+	}
 
-    protected void populate(final String key, final String value) {
-        multiRelaxAdd(store, key, value);
-    }
+	public void setStore(final Multimap<String, String> store) {
+		this.store = store;
+	}
 
-    protected boolean accept(final String fqn) {
-        return fqn!=null && configuration.getFilter().accept(fqn);
-    }
+	protected MetadataAdapter getMetadataAdapter() {
+		return configuration.getMetadataAdapter();
+	}
 
-    protected <T> void multiRelaxAdd(final Map<T, Set<T>> map, final T key, final T... values) {
-        final Set<T> set = new HashSet<T>(values.length);
-        for (T value : values) {
-            if (value != null) {
-                set.add(value);
-            }
-        }
+	protected void populate(final String key, final String value) {
+		multiRelaxAdd(store, key, value);
+	}
 
-        if (!set.isEmpty()) {
-            if (!map.containsKey(key)) {
-                map.put(key, set);
-            } else {
-                map.get(key).addAll(set);
-            }
-        }
-    }
+	protected boolean accept(final String fqn) {
+		return fqn != null && filter.accept(fqn);
+	}
+
+	protected <T> void multiRelaxAdd(final Multimap<T, T> map, final T key, final T... values) {
+		map.putAll(key, ImmutableSet.of(values));
+	}
 }

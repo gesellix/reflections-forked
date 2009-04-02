@@ -57,9 +57,9 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
                 new AbstractConfiguration() {
                     {
                         setUrls(Arrays.asList(parseOutputDirUrl()));
-                        setScanners(parseScanners());
-                        setFilter(parseFilters());
+						setScanners(parseScanners());
                         setMetadataAdapter(new JavassistAdapter());
+						applyUniversalFilter(parseFilters());
                     }
                 });
 

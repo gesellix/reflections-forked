@@ -14,6 +14,8 @@ import java.util.Stack;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import org.reflections.ReflectionsException;
+
 /**
  * a File and JarFile bridge
  */
@@ -29,7 +31,7 @@ public abstract class VirtualFile {
                 try {
                     return new FileInputStream(file);
                 } catch (FileNotFoundException e) {
-                    throw new RuntimeException(e);
+                    throw new ReflectionsException("Can't open virtual file input stream " + file.getName(), e);
                 }
             }
 
@@ -45,7 +47,7 @@ public abstract class VirtualFile {
                 try {
                     return jarFile.getInputStream(entry);
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    throw new ReflectionsException("Can't open a Jar file input stream " + jarFile.getName(), e);
                 }
             }
 
@@ -65,22 +67,23 @@ public abstract class VirtualFile {
         try {
             uri = url.toURI();
         } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
+            throw new ReflectionsException("Can't convert a URL to a URI: " + url, e);
         }
 
-        if (isDirectory(url)) {
-            return iterable(new File(uri));
+		File file = new File(uri);
+		if (file.isDirectory()) {
+            return iterable(file);
         }
 
         if (isJar(url)) {
             try {
-                return iterable(new JarFile(new File(uri)));
+                return iterable(new JarFile(file));
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new ReflectionsException("Couln't iterate over Jar: " + url, e);
             }
         }
 
-        throw new RuntimeException("could not create iterator of VirtualFiles from url " + url);
+        throw new ReflectionsException("could not create iterator of VirtualFiles from url " + url);
     }
 
     public static Iterable<VirtualFile> iterable(final File dir) {
@@ -117,7 +120,7 @@ public abstract class VirtualFile {
         private final Stack<File> fileStack;
 
         public DirFilesIterator(final File dir) {
-            if (!dir.isDirectory()) {throw new RuntimeException(dir + "is not a directory");}
+            if (!dir.isDirectory()) {throw new ReflectionsException(dir + "is not a directory");}
             fileStack = new Stack<File>();
             fileStack.add(dir);
         }

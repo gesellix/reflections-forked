@@ -3,29 +3,30 @@ package org.reflections.util;
 import org.reflections.Configuration;
 import org.reflections.adapters.JavassistAdapter;
 import org.reflections.adapters.MetadataAdapter;
-import org.reflections.filters.Any;
 import org.reflections.filters.Filter;
 import org.reflections.scanners.Scanner;
 
 import java.net.URL;
 import java.util.Collection;
+import java.util.List;
+
+import com.google.common.collect.ImmutableList;
 
 /**
  *
  */
 @SuppressWarnings({"RawUseOfParameterizedType"})
 public class AbstractConfiguration implements Configuration {
-    private Scanner[] scanners;
+    private List<Scanner> scanners;
     private Collection<URL> urls;
     private MetadataAdapter metadataAdapter = new JavassistAdapter();
-    private Filter<String> filter = new Any<String>();
 
-    public Scanner[] getScanners() {
-        return scanners;
-    }
+    public List<Scanner> getScanners() {
+		return scanners;
+	}
 
     public void setScanners(final Scanner... scanners) {
-        this.scanners = scanners;
+        this.scanners = ImmutableList.of(scanners);
     }
 
     public Collection<URL> getUrls() {
@@ -33,8 +34,8 @@ public class AbstractConfiguration implements Configuration {
     }
 
     public void setUrls(final Collection<URL> urls) {
-        this.urls = urls;
-    }
+		this.urls = ImmutableList.copyOf(urls);
+	}
 
     public MetadataAdapter getMetadataAdapter() {
         return metadataAdapter;
@@ -44,12 +45,9 @@ public class AbstractConfiguration implements Configuration {
         this.metadataAdapter = metadataAdapter;
     }
 
-    public Filter<String> getFilter() {
-        return filter;
-    }
-
-    public void setFilter(final Filter<String> filter) {
-        this.filter = filter;
-    }
-
+	public void applyUniversalFilter(Filter<String> filter) {
+		for (Scanner scanner : scanners) {
+			scanner.filterBy(filter);
+		}
+	}
 }

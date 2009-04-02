@@ -1,5 +1,7 @@
 package org.reflections.util;
 
+import static org.reflections.util.ReflectionUtil.resolveClass;
+
 import java.util.List;
 import java.util.ArrayList;
 
@@ -60,15 +62,13 @@ public class DescriptorHelper {
         if (type.startsWith("[")) {
             //array
             String type1 = type.replace("/","."); //still might be an object
-            try {aClass = Class.forName(type1);}
-            catch (ClassNotFoundException e) {throw new RuntimeException(e);}
-        } else {
+			aClass = resolveClass(type1);
+		} else {
             if (type.startsWith("L")) {
                 //non array object
                 String type1 = type.substring(1,type.indexOf(";")).replace("/",".");
-                try {aClass = Class.forName(type1);}
-                catch (ClassNotFoundException e) {throw new RuntimeException(e);}
-            } else {
+				aClass  = resolveClass(type1);
+			} else {
                 //primitive type
                 aClass = simplePrimitiveToType(type.charAt(0));
             }
@@ -111,7 +111,7 @@ public class DescriptorHelper {
     }
 
     /**
-     * java.lang.String -> java/lang/String.class  
+     * java.lang.String -> java/lang/String.class
      */
     public static String classNameToResourceName(final String className) {
         return qNameToResourceName(className) + ".class";
@@ -123,5 +123,5 @@ public class DescriptorHelper {
     public static String qNameToResourceName(String qName) {
         return qName.replace(".", "/");
     }
-    
+
 }

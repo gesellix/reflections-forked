@@ -1,23 +1,28 @@
 package org.reflections.filters;
 
+import org.reflections.ReflectionsException;
+
 import java.util.Collection;
+import java.util.List;
+
+import com.google.common.collect.ImmutableList;
 
 /**
  *
  */
 public class IncludeExcludeChain<T> implements Filter<T> {
-    private final IncludeExcludeFilter<T>[] includeExcludeFilters;
+    private final List<IncludeExcludeFilter<T>> includeExcludeFilters;
     private final boolean startWith;
 
     public IncludeExcludeChain(final IncludeExcludeFilter<T>... includeExcludeFilters) {
         if (includeExcludeFilters == null || includeExcludeFilters.length == 0) {
-            throw new RuntimeException();
+            throw new ReflectionsException("IncludeExcludeChain must contain at least 1 filter.");
         }
 
         final IncludeExcludeFilter<T> first = includeExcludeFilters[0];
         startWith = first instanceof ExcludeFilter; //start with the opposite of the first filter
 
-        this.includeExcludeFilters = includeExcludeFilters;
+		this.includeExcludeFilters = ImmutableList.of(includeExcludeFilters);
     }
 
     public IncludeExcludeChain(final Collection<IncludeExcludeFilter<T>> filters) {

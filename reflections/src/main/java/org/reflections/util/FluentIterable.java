@@ -62,7 +62,7 @@ public abstract class FluentIterable<T> implements Iterable<T> {
     }
 
     //
-    public static abstract class ForkIterator<T1, T2> extends AbstractIterator<T2> implements Transformer<T1, Iterator<T2>> {
+	public abstract static class ForkIterator<T1, T2> extends AbstractIterator<T2> implements Transformer<T1, Iterator<T2>> {
         private final Iterator<T1> iterator1;
         private Iterator<T2> iterator2;
 

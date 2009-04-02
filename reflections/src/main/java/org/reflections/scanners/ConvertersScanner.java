@@ -12,19 +12,19 @@ public class ConvertersScanner extends AbstractScanner {
     public static final String indexName = "Converters";
 
     public void scan(final Object cls) {
-        List<Object> methods = getMetadataAdapter().getMethods(cls);
-        for (Object method : methods) {
-            String returnTypeName = getMetadataAdapter().getReturnTypeName(method);
-            List<String> parameterNames = getMetadataAdapter().getParameterNames(method);
+		String className = getMetadataAdapter().getClassName(cls);
+		List<Object> methods = getMetadataAdapter().getMethods(cls);
+		for (Object method : methods) {
+			String returnTypeName = getMetadataAdapter().getReturnTypeName(method);
+			List<String> parameterNames = getMetadataAdapter().getParameterNames(method);
 
-            if (parameterNames.size() == 1) {
-                Class<?> from = DescriptorHelper.typeNameToType(parameterNames.get(0));
-                Class<?> to = DescriptorHelper.typeNameToType(returnTypeName);
+			if (parameterNames.size() == 1) {
+				Class<?> from = DescriptorHelper.typeNameToType(parameterNames.get(0));
+				Class<?> to = DescriptorHelper.typeNameToType(returnTypeName);
 
-                String className = getMetadataAdapter().getClassName(cls);
-                String methodKey = getMetadataAdapter().getMethodKey(method);
+				String methodKey = getMetadataAdapter().getMethodKey(method);
 
-                populate(getConverterKey(from, to), String.format("%s.%s", className, methodKey));
+				populate(getConverterKey(from, to), String.format("%s.%s", className, methodKey));
             }
         }
     }

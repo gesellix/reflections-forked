@@ -24,17 +24,16 @@ public class ReflectionsTest {
     @SuppressWarnings({"unchecked"})
     private static class TestConfiguration extends AbstractConfiguration {
         {
-            setScanners(
-                    new SubTypesScanner(),
-                    new ClassAnnotationsScanner(),
-                    new FieldAnnotationsScanner(),
-                    new MethodAnnotationsScanner(),
-                    new ConvertersScanner());
+			IncludeExcludeChain filter = new IncludeExcludeChain(new IncludePrefix(TestModel.class.getName()));
+			setScanners(
+                    new SubTypesScanner().filterBy(filter),
+                    new ClassAnnotationsScanner().filterBy(filter),
+                    new FieldAnnotationsScanner().filterBy(filter),
+                    new MethodAnnotationsScanner().filterBy(filter),
+                    new ConvertersScanner().filterBy(filter));
 
-            setUrls(Arrays.asList(ClasspathHelper.getUrlForClass(TestModel.class)));
+			setUrls(Arrays.asList(ClasspathHelper.getUrlForClass(TestModel.class)));
 
-            setFilter(new IncludeExcludeChain(
-                    new IncludePrefix(TestModel.class.getName())));
         }
     }
 
