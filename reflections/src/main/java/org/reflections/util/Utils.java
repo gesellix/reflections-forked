@@ -14,14 +14,9 @@ public abstract class Utils {
 
     public static <T> Set<Class<? extends T>> forNames(final Collection<String> classes) {
         Set<Class<? extends T>> result = new HashSet<Class<? extends T>>(classes.size());
-        for (String aClass : classes) {
-            try {
-                result.add((Class<? extends T>) Class.forName(aClass));
-            }
-            catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        for (String className : classes) {
+			result.add((Class<? extends T>) ReflectionUtil.resolveClass(className));
+		}
         return result;
     }
 

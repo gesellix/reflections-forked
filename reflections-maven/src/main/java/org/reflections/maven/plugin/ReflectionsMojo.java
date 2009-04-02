@@ -14,6 +14,7 @@ import org.reflections.scanners.ClassAnnotationsScanner;
 import org.reflections.scanners.Scanner;
 import org.reflections.scanners.SubTypesScanner;
 import org.reflections.util.AbstractConfiguration;
+import org.reflections.util.ReflectionUtil;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -28,7 +29,7 @@ import java.util.*;
 public class ReflectionsMojo extends MvnInjectableMojoSupport {
 
     @MojoParameter(description = "a comma separated list of scanner classes"
-            , defaultValue = ClassAnnotationsScanner.indexName+","+ SubTypesScanner.indexName)
+            , defaultValue = ClassAnnotationsScanner.indexName+ ',' + SubTypesScanner.indexName)
     private String scanners;
 
     @MojoParameter(description = "a comma separated list of include exclude filters"
@@ -105,10 +106,9 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
             String[] scannerClasses = scanners.split(",");
             for (String scannerClass : scannerClasses) {
                 String trimmed = scannerClass.trim();
-                String className = "org.reflections.scanners." + trimmed + "Scanner";
-
+                String className = String.format("org.reflections.scanners.%sScanner", trimmed);
                 try {
-                    Scanner scanner = (Scanner) Class.forName(className).newInstance();
+                    Scanner scanner = (Scanner) ReflectionUtil.resolveClass(className).newInstance();
                     scannersSet.add(scanner);
                 } catch (Exception e) {
                     throw new MojoExecutionException(String.format("could not find scanner %s [%s]",trimmed,scannerClass), e);
@@ -125,7 +125,7 @@ public class ReflectionsMojo extends MvnInjectableMojoSupport {
 
     private URL parseOutputDirUrl() throws MojoExecutionException {
         try {
-            File outputDirectoryFile = new File(getProject().getBuild().getOutputDirectory() + "/");
+            File outputDirectoryFile = new File(getProject().getBuild().getOutputDirectory() + '/');
             return outputDirectoryFile.toURI().toURL();
         } catch (MalformedURLException e) {
             throw new MojoExecutionException(e.getMessage(), e);

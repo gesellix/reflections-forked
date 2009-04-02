@@ -15,13 +15,13 @@ import org.slf4j.Logger;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+
+import com.google.common.collect.AbstractIterator;
 
 /**
  *
@@ -108,6 +108,48 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
 
     public List<String> getInterfacesNames(final ClassFile cls) {
         return Arrays.asList(cls.getInterfaces());
+    }
+
+	    public Iterator<ClassFile> iterateClasses(final Collection<URL> urls, final Filter<String> filter) {
+        return new AbstractIterator<ClassFile>() {
+            private Iterator<URL> urlsIterator = urls.iterator();
+            private Iterator<VirtualFile> virtualFileIterator = new FluentIterable.EmptyIterator<VirtualFile>();
+
+            @SuppressWarnings({"ThrowFromFinallyBlock"})
+            protected ClassFile computeNext() {
+                while (true) {
+                    if (!virtualFileIterator.hasNext()) {
+                        if (!urlsIterator.hasNext()) {
+                            return endOfData();
+                        } else {
+                            URL url = urlsIterator.next();
+                            virtualFileIterator = VirtualFile.iterable(url).iterator();
+                        }
+                    } else {
+                        VirtualFile virtualFile = virtualFileIterator.next();
+                        InputStream inputStream = virtualFile.getInputStream();
+                        BufferedInputStream bis = null;
+                        try {
+                            bis = new BufferedInputStream(inputStream);
+                            DataInputStream dis = new DataInputStream(bis);
+                            ClassFile classFile = new ClassFile(dis);
+                            String className = getClassName(classFile);
+                            if (filter.accept(className)) {
+                                return classFile;
+                            }
+                        }
+                        catch (IOException e) {
+                            // need to filter directories and none class files
+                        }
+                        finally {
+                            if (bis!=null) {
+                                try {bis.close();} catch (IOException e) {throw new RuntimeException(e);}
+                            }
+                        }
+                    }
+                }
+            }
+        };
     }
 
     public Iterable<ClassFile> iterateClasses(final Collection<URL> urls) {

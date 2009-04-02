@@ -66,12 +66,13 @@ public abstract class FluentIterable<T> implements Iterable<T> {
         private final Iterator<T1> iterator1;
         private Iterator<T2> iterator2;
 
-        public ForkIterator(final Iterator<T1> iterator1) {
-            this.iterator1 = iterator1;
-            this.iterator2 = new EmptyIterator<T2>();
+        protected ForkIterator(final Iterator<T1> iterator) {
+			iterator1 = iterator;
+			iterator2 = new EmptyIterator<T2>();
         }
 
-        protected T2 computeNext() {
+        @Override
+		protected T2 computeNext() {
             while (!iterator2.hasNext()) {
                 if (!iterator1.hasNext()) {
                     return endOfData();
@@ -86,7 +87,8 @@ public abstract class FluentIterable<T> implements Iterable<T> {
     }
 
     public static class EmptyIterator<T2> extends AbstractIterator<T2> {
-        protected T2 computeNext() {return endOfData();}
+        @Override
+		protected T2 computeNext() {return endOfData();}
     }
 
     public static class FilterIterator<T> extends AbstractIterator<T> {
@@ -98,7 +100,8 @@ public abstract class FluentIterable<T> implements Iterable<T> {
             this.filter = filter;
         }
 
-        protected T computeNext() {
+        @Override
+		protected T computeNext() {
             while (iterator.hasNext()) {
                 T t = iterator.next();
                 if (filter.accept(t)) {
@@ -120,7 +123,8 @@ public abstract class FluentIterable<T> implements Iterable<T> {
             this.transformer = transformer;
         }
 
-        protected T2 computeNext() {
+        @Override
+		protected T2 computeNext() {
             return iterator.hasNext() ? transformer.transform(iterator.next()) : endOfData();
         }
     }
