@@ -10,7 +10,6 @@ import org.reflections.util.Transformer;
 
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -31,22 +30,23 @@ public class FluentIterableTest {
 
         List<Integer> result = Arrays.asList(2, 4);
 
-        ArrayList<Integer> integersList = Lists.newArrayList(integers);
+        List<Integer> integersList = Lists.newArrayList(integers);
         Assert.assertTrue(
                 integersList.containsAll(result) && result.containsAll(integersList)
         );
     }
 
-    Filter<String> len2 = new Filter<String>() {
+    private final Filter<String> len2 = new Filter<String>() {
         public boolean accept(final String s) {return s.length() == 2;}
     };
 
-    Transformer<String, Iterator<Character>> toChar = new Transformer<String, Iterator<Character>>() {
+    private final Transformer<String, Iterator<Character>> toChar = new Transformer<String, Iterator<Character>>() {
         public Iterator<Character> transform(final String s) {
             return new AbstractIterator<Character>() {
-                int i = 0;
+                private int i;
 
-                protected Character computeNext() {
+                @Override
+				protected Character computeNext() {
                     if (i < s.length()) {
                         return s.charAt(i++);
                     } else {
@@ -57,23 +57,21 @@ public class FluentIterableTest {
         }
     };
 
-    Filter<Character> digits = new Filter<Character>() {
+    private final Filter<Character> digits = new Filter<Character>() {
         public boolean accept(final Character character) {
             return character >= '0' && character <= '9';
         }
     };
 
-    Transformer<Character, Integer> integer = new Transformer<Character, Integer>() {
+    private final Transformer<Character, Integer> integer = new Transformer<Character, Integer>() {
         public Integer transform(final Character character) {
             return Integer.valueOf(character) - 48;
         }
     };
 
-
-    Filter<Integer> even = new Filter<Integer>() {
+    private final Filter<Integer> even = new Filter<Integer>() {
         public boolean accept(final Integer integer) {
             return integer % 2 == 0;
         }
     };
-
 }
