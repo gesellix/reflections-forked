@@ -299,7 +299,7 @@ public class Reflections extends ReflectionUtils {
      * so that relevant urls could be found much faster
      */
     public static Reflections collect(final String packagePrefix, final Predicate<String> resourceNameFilter, final Serializer serializer) {
-        final Reflections reflections = new Reflections();
+        final Reflections reflections = new Reflections(new ConfigurationBuilder());
 
         for (final Vfs.File file : Vfs.findFiles(ClasspathHelper.forPackage(packagePrefix), packagePrefix, resourceNameFilter)) {
             InputStream inputStream = null;
