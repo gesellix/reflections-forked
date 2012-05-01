@@ -1,8 +1,10 @@
 package org.reflections.vfs;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.jar.JarFile;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -33,11 +35,16 @@ public class UrlTypeVFS implements UrlType {
     public Dir createDir(final URL url) {
         try {
             URL adaptedUrl = adaptURL(url);
-            return new ZipDir(adaptedUrl);
-        } catch (MalformedURLException e) {
+            return new ZipDir(new JarFile(adaptedUrl.getFile()));
+        } catch (Exception e) {
             e.printStackTrace();
-            return new ZipDir(url);
+            try {
+                return new ZipDir(new JarFile(url.getFile()));
+            } catch (IOException e1) {
+                e.printStackTrace();
+            }
         }
+        return null;
     }
 
     public URL adaptURL(URL url) throws MalformedURLException {

@@ -20,7 +20,7 @@
         <dependency>
             <groupId>org.jfrog.maven.annomojo</groupId>
             <artifactId>maven-plugin-anno</artifactId>
-            <version>1.4.0</version>
+            <version>1.4.1</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -46,13 +46,29 @@
                     <dependency>
                         <groupId>org.jfrog.maven.annomojo</groupId>
                         <artifactId>maven-plugin-tools-anno</artifactId>
-                        <version>1.4.0</version>
+                        <version>1.4.1</version>
                         <scope>runtime</scope>
                     </dependency>
                 </dependencies>
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <id>jfrog-plugins</id>
+            <pluginRepositories>
+                <pluginRepository>
+                    <id>jfrog-plugins</id>
+                    <name>jfrog-plugins-dist</name>
+                    <url>http://repo.jfrog.org/artifactory/plugins-releases</url>
+                </pluginRepository>
+            </pluginRepositories>
+        </profile>
+    </profiles>
 
     <repositories>
         <repository>
@@ -61,4 +77,5 @@
             <url>http://repo.jfrog.org/artifactory/plugins-releases</url>
         </repository>
     </repositories>
+
 </project>

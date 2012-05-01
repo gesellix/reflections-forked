@@ -6,16 +6,12 @@ import java.io.FileNotFoundException;
 
 /** an implementation of {@link org.reflections.vfs.Vfs.File} for a directory {@link java.io.File} */
 public class SystemFile implements Vfs.File {
-    private final SystemDir dir;
+    private final SystemDir root;
     private final java.io.File file;
 
-    public SystemFile(final SystemDir dir, java.io.File file) {
-        this.dir = dir;
+    public SystemFile(final SystemDir root, java.io.File file) {
+        this.root = root;
         this.file = file;
-    }
-
-    public String getFullPath() {
-        return file.getPath();
     }
 
     public String getName() {
@@ -23,8 +19,9 @@ public class SystemFile implements Vfs.File {
     }
 
     public String getRelativePath() {
-        if (file.getPath().startsWith(dir.getPath())) {
-            return file.getPath().substring(dir.getPath().length() + 1).replace('\\', '/');
+        String filepath = file.getPath().replace("\\", "/");
+        if (filepath.startsWith(root.getPath())) {
+            return filepath.substring(root.getPath().length() + 1);
         }
 
         return null; //should not get here

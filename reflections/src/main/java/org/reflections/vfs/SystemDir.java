@@ -3,6 +3,8 @@ package org.reflections.vfs;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Lists;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Iterator;
 import java.util.Stack;
@@ -13,12 +15,16 @@ import java.io.File;
 public class SystemDir implements Vfs.Dir {
     private final File file;
 
-    public SystemDir(URL url) {
-        file = new File(Vfs.normalizePath(url));
+    public SystemDir(File file) {
+        if (file == null || !file.exists() || !file.isDirectory() || !file.canRead()) {
+            throw new RuntimeException("cannot use dir " + file);
+        }
+
+        this.file = file;
     }
 
     public String getPath() {
-        return file.getPath();
+        return file.getPath().replace("\\", "/");
     }
 
     public Iterable<Vfs.File> getFiles() {
@@ -45,14 +51,6 @@ public class SystemDir implements Vfs.Dir {
         };
     }
 
-    public void close() {
-    }
-
-    @Override
-    public String toString() {
-        return file.toString();
-    }
-
     private static List<File> listFiles(final File file) {
         File[] files = file.listFiles();
 
@@ -60,5 +58,13 @@ public class SystemDir implements Vfs.Dir {
             return Lists.newArrayList(files);
         else
             return Lists.newArrayList();
+    }
+
+    public void close() {
+    }
+
+    @Override
+    public String toString() {
+        return file.toString();
     }
 }

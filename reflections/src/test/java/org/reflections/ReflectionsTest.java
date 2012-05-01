@@ -199,13 +199,14 @@ public class ReflectionsTest {
         final JsonSerializer serializer = new JsonSerializer();
         testModelReflections.save(path, serializer);
 
-        reflections = new Reflections(new ConfigurationBuilder()).collect("META-INF/reflections",
+        reflections = Reflections.collect("META-INF/reflections",
                 new FilterBuilder().include(".*-reflections.json"),
                 serializer);
 
-        reflections.collect("META-INF/reflections",
-                new FilterBuilder().include(".*-reflections.xml").exclude("testModel-reflections.xml"),
-                new XmlSerializer());
+        reflections.merge(
+                Reflections.collect("META-INF/reflections",
+                        new FilterBuilder().include(".*-reflections.xml").exclude("testModel-reflections.xml"),
+                        new XmlSerializer()));
 
         //todo what about duplicates?
 

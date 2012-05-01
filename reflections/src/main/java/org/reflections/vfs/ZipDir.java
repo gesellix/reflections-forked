@@ -2,39 +2,43 @@ package org.reflections.vfs;
 
 import com.google.common.collect.AbstractIterator;
 import org.reflections.ReflectionsException;
+import org.reflections.util.ClasspathHelper;
+import org.reflections.util.Utils;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URL;
-import java.net.URLDecoder;
+import java.net.*;
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 
 /** an implementation of {@link org.reflections.vfs.Vfs.Dir} for {@link java.util.zip.ZipFile} */
 public class ZipDir implements Vfs.Dir {
-    final java.util.zip.ZipFile zipFile;
-    private String path;
+    final java.util.zip.ZipFile jarFile;
 
-    public ZipDir(URL url) {
-        path = Vfs.normalizePath(url);
-
-        try { zipFile = new java.util.zip.ZipFile(this.path); }
-        catch (IOException e) {throw new RuntimeException(e);}
+    public ZipDir(JarFile jarFile) {
+        this.jarFile = jarFile;
     }
 
     public String getPath() {
-        return path;
+        return jarFile.getName();
     }
 
     public Iterable<Vfs.File> getFiles() {
         return new Iterable<Vfs.File>() {
             public Iterator<Vfs.File> iterator() {
                 return new AbstractIterator<Vfs.File>() {
-                    final Enumeration<? extends ZipEntry> entries = zipFile.entries();
+                    final Enumeration<? extends ZipEntry> entries = jarFile.entries();
 
                     protected Vfs.File computeNext() {
-                        return entries.hasMoreElements() ? new ZipFile(ZipDir.this, entries.nextElement()) : endOfData();
+                        while (entries.hasMoreElements()) {
+                            ZipEntry entry = entries.nextElement();
+                            if (!entry.isDirectory()) {
+                                return new ZipFile(ZipDir.this, entry);
+                            }
+                        }
+
+                        return endOfData();
                     }
                 };
             }
@@ -42,14 +46,11 @@ public class ZipDir implements Vfs.Dir {
     }
 
     public void close() {
-        if (zipFile != null) {
-            try {zipFile.close();}
-            catch (IOException e) {throw new RuntimeException("could not close zip file " + path, e);}
-        }
+        Utils.close(jarFile);
     }
 
     @Override
     public String toString() {
-        return zipFile.getName();
+        return jarFile.getName();
     }
 }

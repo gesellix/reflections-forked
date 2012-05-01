@@ -4,7 +4,9 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import org.reflections.scanners.*;
+import org.reflections.scanners.Scanner;
+import org.reflections.scanners.SubTypesScanner;
+import org.reflections.scanners.TypeAnnotationsScanner;
 import org.reflections.serializers.Serializer;
 import org.reflections.serializers.XmlSerializer;
 import org.reflections.util.ClasspathHelper;
@@ -27,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import static java.lang.String.format;
@@ -182,9 +185,9 @@ public class Reflections extends ReflectionUtils {
         });
     }
 
-    //used for serialization
     protected Reflections() {
-        configuration = null;
+        configuration = new ConfigurationBuilder();
+        store = new Store();
     }
 
     //
@@ -203,7 +206,7 @@ public class Reflections extends ReflectionUtils {
         }
 
         long time = System.currentTimeMillis();
-
+        final AtomicInteger scannedUrls = new AtomicInteger();
         ExecutorService executorService = configuration.getExecutorService();
 
         if (executorService == null) {
@@ -212,10 +215,10 @@ public class Reflections extends ReflectionUtils {
                     for (final Vfs.File file : Vfs.fromURL(url).getFiles()) {
                         scan(file);
                     }
+                    scannedUrls.incrementAndGet();
                 } catch (ReflectionsException e) {
                     if (log != null) log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
                 }
-
             }
         } else {
             //todo use CompletionService
@@ -227,6 +230,7 @@ public class Reflections extends ReflectionUtils {
                             futures.add(executorService.submit(new Runnable() {
                                 public void run() {
                                     scan(file);
+                                    scannedUrls.incrementAndGet();
                                 }
                             }));
                         }
@@ -249,7 +253,7 @@ public class Reflections extends ReflectionUtils {
         Integer values = store.getValuesCount();
 
         if (log != null) log.info(format("Reflections took %d ms to scan %d urls, producing %d keys and %d values %s",
-                time, configuration.getUrls().size(), keys, values,
+                time, scannedUrls.get(), keys, values,
                 executorService != null && executorService instanceof ThreadPoolExecutor ?
                         format("[using %d cores]", ((ThreadPoolExecutor) executorService).getMaximumPoolSize()) : ""));
     }
@@ -263,7 +267,7 @@ public class Reflections extends ReflectionUtils {
                         scanner.scan(file);
                     }
                 } catch (Exception e) {
-                    log.warn("could not scan file " + file.getFullPath() + " with scanner " + scanner.getClass().getSimpleName(), e);
+                    log.warn("could not scan file " + file.toString() + " with scanner " + scanner.getClass().getSimpleName(), e);
                 }
             }
         }
