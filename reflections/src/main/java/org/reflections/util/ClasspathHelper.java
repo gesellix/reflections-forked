@@ -2,14 +2,15 @@ package org.reflections.util;
 
 import com.google.common.collect.Sets;
 import org.reflections.Reflections;
-import org.reflections.vfs.Vfs;
 
 import javax.servlet.ServletContext;
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.net.URLDecoder;
 import java.util.Enumeration;
 import java.util.Set;
 import java.util.jar.Attributes;
@@ -45,21 +46,24 @@ public abstract class ClasspathHelper {
         final Set<URL> result = Sets.newHashSet();
 
         final ClassLoader[] loaders = classLoaders(classLoaders);
-        final String resourceName = name.replace(".", "/");
-        String encodedResourceName = Utils.encodePath(resourceName, true);
+        final String resourceName = resourceName(name);
 
         for (ClassLoader classLoader : loaders) {
             try {
                 final Enumeration<URL> urls = classLoader.getResources(resourceName);
                 while (urls.hasMoreElements()) {
                     final URL url = urls.nextElement();
-                    int index = url.toExternalForm().lastIndexOf(encodedResourceName);
+                    int index = url.toExternalForm().lastIndexOf(resourceName);
                     if (index != -1) {
                         result.add(new URL(url.toExternalForm().substring(0, index)));
+                    } else {
+                        result.add(url); //whatever
                     }
                 }
             } catch (IOException e) {
-                e.printStackTrace();
+                if (Reflections.log != null) {
+                    Reflections.log.error("error getting resources for package " + name, e);
+                }
             }
         }
 
@@ -169,7 +173,7 @@ public abstract class ClasspathHelper {
         result.add(url);
 
         try {
-            final String part = Vfs.normalizePath(url);
+            final String part = cleanPath(url);
             File jarFile = new File(part);
             JarFile myJar = new JarFile(part);
 
@@ -206,6 +210,7 @@ public abstract class ClasspathHelper {
         return result;
     }
 
+    //
     //a little bit cryptic...
     static URL tryToGetValidUrl(String workingDir, String path, String filename) {
         try {
@@ -221,6 +226,36 @@ public abstract class ClasspathHelper {
             // don't do anything, we're going on the assumption it is a jar, which could be wrong
         }
         return null;
+    }
+
+    public static String cleanPath(final URL url) {
+        String path = url.getPath();
+        try {
+            path = URLDecoder.decode(path, "UTF-8");
+        } catch (UnsupportedEncodingException e) { /**/ }
+        if (path.startsWith("jar:")) {
+            path = path.substring("jar:".length());
+        }
+        if (path.startsWith("file:")) {
+            path = path.substring("file:".length());
+        }
+        if (path.endsWith("!/")) {
+            path = path.substring(0, path.lastIndexOf("!/")) + "/";
+        }
+        return path;
+    }
+
+    private static String resourceName(String name) {
+        if (name != null) {
+            String resourceName = name.replace(".", "/");
+            resourceName = resourceName.replace("\\", "/");
+            if (resourceName.startsWith("/")) {
+                resourceName = resourceName.substring(1);
+            }
+            return resourceName;
+        } else {
+            return name;
+        }
     }
 }
 

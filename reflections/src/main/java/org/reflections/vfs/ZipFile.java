@@ -6,16 +6,12 @@ import java.util.zip.ZipEntry;
 
 /** an implementation of {@link org.reflections.vfs.Vfs.File} for {@link java.util.zip.ZipEntry} */
 public class ZipFile implements Vfs.File {
-    private final ZipDir dir;
+    private final ZipDir root;
     private final ZipEntry entry;
 
-    public ZipFile(final ZipDir dir, ZipEntry entry) {
-        this.dir = dir;
+    public ZipFile(final ZipDir root, ZipEntry entry) {
+        this.root = root;
         this.entry = entry;
-    }
-
-    public String getFullPath() {
-        return dir.getPath() + "/" + entry.getName();
     }
 
     public String getName() {
@@ -23,20 +19,16 @@ public class ZipFile implements Vfs.File {
         return name.substring(name.lastIndexOf("/") + 1);
     }
 
-    public String getPath() {
-        return dir.getPath();
-    }
-
     public String getRelativePath() {
         return entry.getName();
     }
 
     public InputStream openInputStream() throws IOException {
-        return dir.zipFile.getInputStream(entry);
+        return root.jarFile.getInputStream(entry);
     }
 
     @Override
     public String toString() {
-        return dir.getPath() + "!" + java.io.File.separatorChar + entry.toString();
+        return root.getPath() + "!" + java.io.File.separatorChar + entry.toString();
     }
 }

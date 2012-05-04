@@ -1,14 +1,20 @@
 package org.reflections;
 
+import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
+import javassist.bytecode.ClassFile;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.reflections.adapters.JavassistAdapter;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.vfs.Vfs;
 import org.reflections.vfs.ZipDir;
 
+import javax.annotation.Nullable;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -16,37 +22,104 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.util.Collection;
 import java.util.Set;
+import java.util.jar.JarFile;
+
+import static com.google.common.collect.FluentIterable.*;
+import static org.junit.Assert.*;
 
 /** */
 public class VfsTest {
 
-    @Test public void dirWithSpaces() {
-        for (URL url : ClasspathHelper.forPackage("dir with spaces")) {
-            testVfsDir(url);
+    @Test
+    public void allKindsOfShittyUrls() throws Exception {
+        JavassistAdapter mdAdapter = new JavassistAdapter();
+
+        {
+            URL jar1 = from(ClasspathHelper.forClassLoader()).
+                    filter(new Predicate<URL>() {
+                        public boolean apply(@Nullable URL input) {
+                            return input.getPath().endsWith(".jar") && input.toString().startsWith("file:");
+                        }
+                    }).
+                    first().get();
+
+            assertTrue(jar1.toString().startsWith("file:"));
+            assertTrue(jar1.toString().contains(".jar"));
+
+            assertTrue(Vfs.DefaultUrlTypes.jarFile.matches(jar1));
+            assertFalse(Vfs.DefaultUrlTypes.jarUrl.matches(jar1));
+            assertFalse(Vfs.DefaultUrlTypes.directory.matches(jar1));
+
+            Vfs.Dir dir = Vfs.DefaultUrlTypes.jarFile.createDir(jar1);
+            Vfs.File file =
+                    from(dir.getFiles()).
+                    filter(new Predicate<Vfs.File>() {
+                        public boolean apply(@Nullable Vfs.File input) {
+                            return input.getRelativePath().endsWith(".class");
+                        }
+                    }).
+                    first().get();
+
+            ClassFile stringCF = mdAdapter.getOfCreateClassObject(file);
+            //noinspection UnusedDeclaration
+            String className = mdAdapter.getClassName(stringCF);
         }
+
+        {
+            URL rtJarUrl = ClasspathHelper.forClass(String.class);
+            assertTrue(rtJarUrl.toString().startsWith("jar:file:"));
+            assertTrue(rtJarUrl.toString().contains(".jar!"));
+
+            assertFalse(Vfs.DefaultUrlTypes.jarFile.matches(rtJarUrl));
+            assertTrue(Vfs.DefaultUrlTypes.jarUrl.matches(rtJarUrl));
+            assertFalse(Vfs.DefaultUrlTypes.directory.matches(rtJarUrl));
+
+            Vfs.Dir dir = Vfs.DefaultUrlTypes.jarUrl.createDir(rtJarUrl);
+            Vfs.File file = from(dir.getFiles()).
+                    filter(new Predicate<Vfs.File>() {
+                        public boolean apply(@Nullable Vfs.File input) {
+                            return input.getRelativePath().equals("java/lang/String.class");
+                        }
+                    }).
+                    first().get();
+
+            ClassFile stringCF = mdAdapter.getOfCreateClassObject(file);
+            String className = mdAdapter.getClassName(stringCF);
+            assertTrue(className.equals("java.lang.String"));
+        }
+
+        {
+            URL thisUrl = ClasspathHelper.forClass(getClass());
+            assertTrue(thisUrl.toString().startsWith("file:"));
+            assertFalse(thisUrl.toString().contains(".jar"));
+
+            assertFalse(Vfs.DefaultUrlTypes.jarFile.matches(thisUrl));
+            assertFalse(Vfs.DefaultUrlTypes.jarUrl.matches(thisUrl));
+            assertTrue(Vfs.DefaultUrlTypes.directory.matches(thisUrl));
+
+            Vfs.Dir dir = Vfs.DefaultUrlTypes.directory.createDir(thisUrl);
+            Vfs.File file = from(dir.getFiles()).
+                    filter(new Predicate<Vfs.File>() {
+                        public boolean apply(@Nullable Vfs.File input) {
+                            return input.getRelativePath().equals("org/reflections/VfsTest.class");
+                        }
+                    }).
+                    first().get();
+
+            ClassFile stringCF = mdAdapter.getOfCreateClassObject(file);
+            String className = mdAdapter.getClassName(stringCF);
+            assertTrue(className.equals(getClass().getName()));
+        }
+
     }
 
-    @Test public void test() throws IOException {
-        File dir1 = new File("/tmp/dir with spaces/");
-
-        try {
-            dir1.mkdirs();
-
-            File dir2 = new File("/tmp/dir%20with%20spaces/");
-            if (dir2.exists()) { dir2.delete(); }
-
-            File from = new File(getSomeJar().getFile());
-            File to = new File(dir1, from.getName());
-            Files.copy(from, to);
-
-            testVfsDir(to.toURL());
-            testVfsDir(new File(dir2, from.getName()).toURL());
-            testVfsDir(new URL("jar", "", "file:" + to.getAbsolutePath() + "!/"));
-        } finally {
-            Files.deleteRecursively(dir1);
+    @Test public void dirWithSpaces() {
+        Set<URL> urls = ClasspathHelper.forPackage("dir+with spaces");
+        assertFalse(urls.isEmpty());
+        for (URL url : urls) {
+            testVfsDir(url);
         }
     }
 
@@ -68,21 +141,21 @@ public class VfsTest {
     @Test
     public void findFilesFromEmptyMatch() throws MalformedURLException {
         final URL jar = getSomeJar();
-        final Iterable<Vfs.File> files = Vfs.findFiles(java.util.Arrays.asList(jar), Predicates.<Vfs.File>alwaysFalse());
-        Assert.assertNotNull(files);
-        Assert.assertFalse(files.iterator().hasNext());
+        final Iterable<Vfs.File> files = Vfs.findFiles(java.util.Arrays.asList(jar), Predicates.<Vfs.File>alwaysTrue());
+        assertNotNull(files);
+        assertTrue(files.iterator().hasNext());
     }
 
     private void testVfsDir(URL url) {
         System.out.println("testVfsDir(" + url + ")");
-        Assert.assertNotNull(url);
+        assertNotNull(url);
 
         Vfs.Dir dir = Vfs.fromURL(url);
-        Assert.assertNotNull(dir);
+        assertNotNull(dir);
 
         Iterable<Vfs.File> files = dir.getFiles();
         Vfs.File first = files.iterator().next();
-        Assert.assertNotNull(first);
+        assertNotNull(first);
 
         first.getName();
         try {
@@ -114,7 +187,7 @@ public class VfsTest {
             this.path = url.toExternalForm();
             try {file = downloadTempLocally(url);}
             catch (IOException e) {throw new RuntimeException(e);}
-            try { zipDir = new ZipDir(file.toURL()); } catch (MalformedURLException e) { throw new RuntimeException(e); }
+            try { zipDir = new ZipDir(new JarFile(file)); } catch (Exception e) { throw new RuntimeException(e); }
         }
 
         public String getPath() {return path;}
@@ -153,7 +226,7 @@ public class VfsTest {
             }
         }
 
-        Assert.fail("could not find jar url");
+        fail("could not find jar url");
         return null;
     }
 

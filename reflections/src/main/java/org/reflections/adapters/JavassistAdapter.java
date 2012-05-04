@@ -9,11 +9,11 @@ import org.reflections.ReflectionsException;
 import org.reflections.util.Utils;
 import org.reflections.vfs.Vfs;
 
+import javax.annotation.Nullable;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -25,12 +25,23 @@ import static javassist.bytecode.AccessFlag.*;
  */
 public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, MethodInfo> {
 
-    private Cache<Vfs.File, ClassFile> classFileCache = CacheBuilder.newBuilder().softValues().weakKeys().maximumSize(16).expireAfterWrite(500, TimeUnit.MILLISECONDS).
-            build(new CacheLoader<Vfs.File, ClassFile>() {
-                @Override public ClassFile load(Vfs.File key) throws Exception {
-                    return createClassObject(key);
-                }
-            });
+    /**setting this to false will result in returning only visible annotations from the relevant methods here (only {@link java.lang.annotation.RetentionPolicy#RUNTIME})*/
+    public static boolean includeInvisibleTag = true;
+
+    private @Nullable Cache<Vfs.File, ClassFile> classFileCache;
+
+    {
+        try {
+            classFileCache = CacheBuilder.newBuilder().softValues().weakKeys().maximumSize(16).expireAfterWrite(500, TimeUnit.MILLISECONDS).
+                    build(new CacheLoader<Vfs.File, ClassFile>() {
+                        @Override public ClassFile load(Vfs.File key) throws Exception {
+                            return createClassObject(key);
+                        }
+                    });
+        } catch (Error e) {
+            classFileCache = null;
+        }
+    }
 
     public List<FieldInfo> getFields(final ClassFile cls) {
         //noinspection unchecked
@@ -53,34 +64,37 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
     }
 
     public List<String> getClassAnnotationNames(final ClassFile aClass) {
-        AnnotationsAttribute annotationsAttribute = (AnnotationsAttribute) aClass.getAttribute(AnnotationsAttribute.visibleTag);
-        return getAnnotationNames(annotationsAttribute);
+        return getAnnotationNames((AnnotationsAttribute) aClass.getAttribute(AnnotationsAttribute.visibleTag), 
+                includeInvisibleTag ? (AnnotationsAttribute) aClass.getAttribute(AnnotationsAttribute.invisibleTag) : null);
     }
 
     public List<String> getFieldAnnotationNames(final FieldInfo field) {
-        AnnotationsAttribute annotationsAttribute = (AnnotationsAttribute) field.getAttribute(AnnotationsAttribute.visibleTag);
-
-        return getAnnotationNames(annotationsAttribute);
+        return getAnnotationNames((AnnotationsAttribute) field.getAttribute(AnnotationsAttribute.visibleTag), 
+                includeInvisibleTag ? (AnnotationsAttribute) field.getAttribute(AnnotationsAttribute.invisibleTag) : null);
     }
 
     public List<String> getMethodAnnotationNames(final MethodInfo method) {
-        AnnotationsAttribute annotationsAttribute = (AnnotationsAttribute) method.getAttribute(AnnotationsAttribute.visibleTag);
-
-        return getAnnotationNames(annotationsAttribute);
+        return getAnnotationNames((AnnotationsAttribute) method.getAttribute(AnnotationsAttribute.visibleTag),
+                includeInvisibleTag ? (AnnotationsAttribute) method.getAttribute(AnnotationsAttribute.invisibleTag) : null);
     }
 
     public List<String> getParameterAnnotationNames(final MethodInfo method, final int parameterIndex) {
-        ParameterAnnotationsAttribute parameterAnnotationsAttribute = (ParameterAnnotationsAttribute) method.getAttribute(ParameterAnnotationsAttribute.visibleTag);
+        List<String> result = Lists.newArrayList();
 
-        if (parameterAnnotationsAttribute != null) {
-            Annotation[][] annotations = parameterAnnotationsAttribute.getAnnotations();
-            if (parameterIndex < annotations.length) {
-                Annotation[] annotation = annotations[parameterIndex];
-                return getAnnotationNames(annotation);
+        List<ParameterAnnotationsAttribute> parameterAnnotationsAttributes = Lists.newArrayList((ParameterAnnotationsAttribute) method.getAttribute(ParameterAnnotationsAttribute.visibleTag),
+                (ParameterAnnotationsAttribute) method.getAttribute(ParameterAnnotationsAttribute.invisibleTag));
+
+        if (parameterAnnotationsAttributes != null) {
+            for (ParameterAnnotationsAttribute parameterAnnotationsAttribute : parameterAnnotationsAttributes) {
+                Annotation[][] annotations = parameterAnnotationsAttribute.getAnnotations();
+                if (parameterIndex < annotations.length) {
+                    Annotation[] annotation = annotations[parameterIndex];
+                    result.addAll(getAnnotationNames(annotation));
+                }
             }
         }
 
-        return new ArrayList<String>();
+        return result;
     }
 
     public String getReturnTypeName(final MethodInfo method) {
@@ -95,10 +109,13 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
 
     public ClassFile getOfCreateClassObject(final Vfs.File file) {
         try {
-            return classFileCache.get(file);
+            if (classFileCache != null) {
+                return ((LoadingCache<Vfs.File, ClassFile>) classFileCache).get(file);
+            }
         } catch (Exception e) {
-            return createClassObject(file);
+            //fallback
         }
+        return createClassObject(file);
     }
 
     protected ClassFile createClassObject(final Vfs.File file) {
@@ -152,11 +169,20 @@ public class JavassistAdapter implements MetadataAdapter<ClassFile, FieldInfo, M
     }
 
     //
-    private List<String> getAnnotationNames(final AnnotationsAttribute annotationsAttribute) {
-        if (annotationsAttribute == null) {return new ArrayList<String>(0);}
+    private List<String> getAnnotationNames(final AnnotationsAttribute... annotationsAttributes) {
+        List<String> result = Lists.newArrayList();
 
-        final Annotation[] annotations = annotationsAttribute.getAnnotations();
-        return getAnnotationNames(annotations);
+        if (annotationsAttributes != null) {
+            for (AnnotationsAttribute annotationsAttribute : annotationsAttributes) {
+                if (annotationsAttribute != null) {
+                    for (Annotation annotation : annotationsAttribute.getAnnotations()) {
+                        result.add(annotation.getTypeName());
+                    }
+                }
+            }
+        }
+
+        return result;
     }
 
     private List<String> getAnnotationNames(final Annotation[] annotations) {

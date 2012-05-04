@@ -31,7 +31,7 @@ public class TypesScanner extends AbstractScanner {
         //noinspection unchecked
         String className = getMetadataAdapter().getClassName(cls);
 
-        getStore().put(className, file.getFullPath());
+        getStore().put(className, className);
     }
 
     @Override
