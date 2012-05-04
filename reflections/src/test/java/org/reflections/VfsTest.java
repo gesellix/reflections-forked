@@ -2,11 +2,8 @@ package org.reflections;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterables;
-import com.google.common.io.Files;
+import com.google.common.collect.Collections2;
 import javassist.bytecode.ClassFile;
-import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.reflections.adapters.JavassistAdapter;
@@ -26,7 +23,6 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.jar.JarFile;
 
-import static com.google.common.collect.FluentIterable.*;
 import static org.junit.Assert.*;
 
 /** */
@@ -37,13 +33,12 @@ public class VfsTest {
         JavassistAdapter mdAdapter = new JavassistAdapter();
 
         {
-            URL jar1 = from(ClasspathHelper.forClassLoader()).
-                    filter(new Predicate<URL>() {
+            URL jar1 = Collections2.filter(ClasspathHelper.forClassLoader(),
+                    new Predicate<URL>() {
                         public boolean apply(@Nullable URL input) {
                             return input.getPath().endsWith(".jar") && input.toString().startsWith("file:");
                         }
-                    }).
-                    first().get();
+                    }).iterator().next();
 
             assertTrue(jar1.toString().startsWith("file:"));
             assertTrue(jar1.toString().contains(".jar"));
@@ -53,14 +48,10 @@ public class VfsTest {
             assertFalse(Vfs.DefaultUrlTypes.directory.matches(jar1));
 
             Vfs.Dir dir = Vfs.DefaultUrlTypes.jarFile.createDir(jar1);
-            Vfs.File file =
-                    from(dir.getFiles()).
-                    filter(new Predicate<Vfs.File>() {
-                        public boolean apply(@Nullable Vfs.File input) {
-                            return input.getRelativePath().endsWith(".class");
-                        }
-                    }).
-                    first().get();
+            Vfs.File file = null;
+            for (Vfs.File f : dir.getFiles()) {
+                if (f.getRelativePath().endsWith(".class")) { file = f; break; }
+            }
 
             ClassFile stringCF = mdAdapter.getOfCreateClassObject(file);
             //noinspection UnusedDeclaration
@@ -77,13 +68,10 @@ public class VfsTest {
             assertFalse(Vfs.DefaultUrlTypes.directory.matches(rtJarUrl));
 
             Vfs.Dir dir = Vfs.DefaultUrlTypes.jarUrl.createDir(rtJarUrl);
-            Vfs.File file = from(dir.getFiles()).
-                    filter(new Predicate<Vfs.File>() {
-                        public boolean apply(@Nullable Vfs.File input) {
-                            return input.getRelativePath().equals("java/lang/String.class");
-                        }
-                    }).
-                    first().get();
+            Vfs.File file = null;
+            for (Vfs.File f : dir.getFiles()) {
+                if (f.getRelativePath().equals("java/lang/String.class")) { file = f; break; }
+            }
 
             ClassFile stringCF = mdAdapter.getOfCreateClassObject(file);
             String className = mdAdapter.getClassName(stringCF);
@@ -100,13 +88,10 @@ public class VfsTest {
             assertTrue(Vfs.DefaultUrlTypes.directory.matches(thisUrl));
 
             Vfs.Dir dir = Vfs.DefaultUrlTypes.directory.createDir(thisUrl);
-            Vfs.File file = from(dir.getFiles()).
-                    filter(new Predicate<Vfs.File>() {
-                        public boolean apply(@Nullable Vfs.File input) {
-                            return input.getRelativePath().equals("org/reflections/VfsTest.class");
-                        }
-                    }).
-                    first().get();
+            Vfs.File file = null;
+            for (Vfs.File f : dir.getFiles()) {
+                if (f.getRelativePath().equals("org/reflections/VfsTest.class")) { file = f; break; }
+            }
 
             ClassFile stringCF = mdAdapter.getOfCreateClassObject(file);
             String className = mdAdapter.getClassName(stringCF);

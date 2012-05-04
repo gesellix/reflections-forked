@@ -69,6 +69,20 @@ public class Store {
         return result;
     }
 
+    /** get the values of given keys stored for the given scanner class */
+    public Set<String> get(Class<? extends Scanner> scannerClass, Iterable<String> keys) {
+        Set<String> result = Sets.newHashSet();
+
+        Multimap<String, String> map = get(scannerClass);
+        if (map != null) {
+            for (String key : keys) {
+                result.addAll(map.get(key));
+            }
+        }
+
+        return result;
+    }
+
     /** return the store map. not immutable*/
     public Map<String, Multimap<String, String>> getStoreMap() {
         return storeMap;
@@ -193,8 +207,7 @@ public class Store {
     public Set<String> getResources(final Predicate<String> namePredicate) {
         Multimap<String, String> mmap = get(ResourcesScanner.class);
         if (mmap != null) {
-            Set<String> matches = Sets.newHashSet(Iterables.filter(mmap.keySet(), namePredicate));
-            return get(ResourcesScanner.class, matches.toArray(new String[matches.size()]));
+            return get(ResourcesScanner.class, Collections2.filter(mmap.keySet(), namePredicate));
         } else {
             return Sets.newHashSet();
         }

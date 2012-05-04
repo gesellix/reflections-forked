@@ -2,8 +2,7 @@ package org.reflections;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import com.google.common.collect.*;
 import org.reflections.util.ClasspathHelper;
 
 import javax.annotation.Nullable;
@@ -13,8 +12,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.util.*;
-
-import static com.google.common.collect.FluentIterable.from;
 
 /** convenient java reflection helper methods
  * <p>
@@ -76,7 +73,7 @@ public abstract class ReflectionUtils {
             }
         }
 
-        return from(result).filter(predicate).toImmutableSet();
+        return ImmutableSet.copyOf(Collections2.filter(result, predicate));
     }
 
     public static Set<Class<?>> getAllSuperTypes(final Iterable<? extends Class<?>> types, Predicate<? super Class<?>> predicate) {
@@ -95,7 +92,7 @@ public abstract class ReflectionUtils {
         Set<Field> result = Sets.newHashSet();
         for (Class<?> t : getAllSuperTypes(type, Predicates.alwaysTrue())) Collections.addAll(result, t.getDeclaredFields());
 
-        return from(result).filter(predicate).toImmutableSet();
+        return ImmutableSet.copyOf(Collections2.filter(result, predicate));
     }
 
     public static Set<Field> getAllFields(final Iterable<? extends Class<?>> types, Predicate<? super Field> predicate) {
@@ -103,7 +100,7 @@ public abstract class ReflectionUtils {
         return result;
     }
 
-    /** get all methods of given {@code type}, including, filtered by {@code predicate}
+    /** get all methods of given {@code type} filtered by {@code predicate}
      * <p>for example:
      * <pre>
      * Set&#60Method> getters =
@@ -119,19 +116,19 @@ public abstract class ReflectionUtils {
             Collections.addAll(result, t.isInterface() ? t.getMethods() : t.getDeclaredMethods());
         }
 
-        return from(result).filter(predicate).toImmutableSet();
+        return ImmutableSet.copyOf(Collections2.filter(result, predicate));
     }
 
     /** get all methods of given {@code types}, filtered by {@code predicate}*/
     public static Set<Method> getAllMethods(final Iterable<? extends Class<?>> types, Predicate<? super Method> predicate) {
         Set<Method> result = Sets.newHashSet(); for (Class<?> type : types) result.addAll(getAllMethods(type, predicate));
 
-        return from(result).toImmutableSet();
+        return ImmutableSet.copyOf(result);
     }
 
     /** filter all given {@code elements} with {@code predicate} */
     public static <T extends AnnotatedElement> Set<T> getAll(final Iterable<? extends T> elements, Predicate<? super T> predicate) {
-        return (Set<T>) from(elements).filter(predicate).toImmutableSet();
+        return ImmutableSet.copyOf(Iterables.filter(elements, predicate));
     }
 
     /** where member name equals given {@code name} */
@@ -236,7 +233,7 @@ public abstract class ReflectionUtils {
         };
     }
 
-    /* when method parameter annotations matches given {@code annotations} */
+    /** when method parameter annotations matches given {@code annotations} */
     public static Predicate<Method> withParameterAnnotations(final Annotation... annotations) {
         return new Predicate<Method>() {
             public boolean apply(@Nullable Method input) {
@@ -259,7 +256,7 @@ public abstract class ReflectionUtils {
         };
     }
 
-    /* when method parameter annotations matches given {@code annotations}, including member matching */
+    /** when method parameter annotations matches given {@code annotations}, including member matching */
     public static Predicate<Method> withParameterAnnotations(final Class<? extends Annotation>... annotationClasses) {
         return new Predicate<Method>() {
             public boolean apply(@Nullable Method input) {

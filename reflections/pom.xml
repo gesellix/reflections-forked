@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.reflections</groupId>
         <artifactId>reflections-parent</artifactId>
-        <version>0.9.7-SNAPSHOT</version>
+        <version>0.9.7.RC1</version>
     </parent>
 
     <artifactId>reflections</artifactId>
@@ -17,7 +17,8 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>12.0-rc1</version>
+            <version>12.0</version> <!-- jdk1.6+ -->
+            <!--<version>11.0.2</version>--> <!-- case: when only jdk1.5 is acceptable -->
         </dependency>
 
         <dependency>
@@ -59,7 +60,7 @@
         <dependency>
             <groupId>org.jboss</groupId>
             <artifactId>jboss-vfs</artifactId>
-            <version>3.0.1.GA</version>
+            <version>3.0.1.GA</version> <!-- jdk1.6+ -->
             <scope>provided</scope>
             <optional>true</optional> <!-- case: when using jboss 7 vfs-->
         </dependency>
