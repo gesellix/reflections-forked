@@ -2,10 +2,13 @@ package org.reflections.util;
 
 import org.reflections.ReflectionUtils;
 import org.reflections.ReflectionsException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -94,8 +97,17 @@ public abstract class Utils {
         }
     }
 
-    public static void close(Closeable closeable) {
+    public static void close(InputStream closeable) {
         try { if (closeable != null) closeable.close(); }
         catch (IOException e) { e.printStackTrace(); }
+    }
+
+    public static @Nullable Logger findLogger(Class<?> aClass) {
+        try {
+            Class.forName("org.slf4j.impl.StaticLoggerBinder");
+            return LoggerFactory.getLogger(aClass);
+        } catch (Throwable e) {
+            return null;
+        }
     }
 }

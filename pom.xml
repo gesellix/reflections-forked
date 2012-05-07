@@ -4,10 +4,12 @@
 
     <groupId>org.reflections</groupId>
     <artifactId>reflections-parent</artifactId>
-    <version>0.9.7-SNAPSHOT</version>
+    <version>0.9.7.RC1</version>
     <packaging>pom</packaging>
 
-    <name>Reflections parent</name>
+    <name>Reflections</name>
+    <description>Reflections - a Java runtime metadata analysis</description>
+    <url>http://code.google.com/p/reflections/</url>
 
     <modules>
         <module>reflections</module>
@@ -25,6 +27,12 @@
         <connection>http://reflections.googlecode.com/svn/trunk/</connection>
         <url>http://reflections.googlecode.com/svn/trunk/</url>
     </scm>
+
+    <developers>
+        <developer>
+            <email>ronmamo@gmail.com</email>
+        </developer>
+    </developers>
 
     <distributionManagement>
         <repository>

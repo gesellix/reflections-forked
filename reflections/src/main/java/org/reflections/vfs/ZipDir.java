@@ -43,14 +43,7 @@ public class ZipDir implements Vfs.Dir {
     }
 
     public void close() {
-        if (jarFile != null) {
-            try {
-                jarFile.close();
-            }
-            catch (IOException e) {
-                throw new RuntimeException("could not close zip file " + getPath(), e);
-            }
-        }
+        try { jarFile.close(); } catch (IOException e) { e.printStackTrace(); }
     }
 
     @Override

@@ -15,7 +15,6 @@ import org.reflections.util.FilterBuilder;
 import org.reflections.util.Utils;
 import org.reflections.vfs.Vfs;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.*;
@@ -71,20 +70,10 @@ import static org.reflections.util.Utils.*;
  * <p><i>* be aware that when using the constructor new Reflections("my.package"), only urls with prefix 'my.package' will be scanned,
  * and any transitive classes in other urls will not be scanned (for example if my.package.SomeClass extends other.package.OtherClass,
  * than the later will not be scanned). in that case use the other constructors and specify the relevant packages/urls
- * {@link Reflections#Reflections(Object[], org.reflections.scanners.Scanner...)}()} or {@link Reflections#Reflections(Configuration)}</i>
  * <p><p><p>For Javadoc, source code, and more information about Reflections Library, see http://code.google.com/p/reflections/
  */
 public class Reflections extends ReflectionUtils {
-    @Nullable public static Logger log;
-
-    static {
-        try {
-            Class.forName("org.slf4j.impl.StaticLoggerBinder");
-            log = LoggerFactory.getLogger(Reflections.class);
-        } catch (Throwable e) {
-            log = null;
-        }
-    }
+    @Nullable public static Logger log = findLogger(Reflections.class);
 
     protected final transient Configuration configuration;
     private Store store;
@@ -118,71 +107,32 @@ public class Reflections extends ReflectionUtils {
      * @param scanners optionally supply scanners, otherwise defaults to {@link TypeAnnotationsScanner} and {@link SubTypesScanner}
      */
     public Reflections(final String prefix, @Nullable final Scanner... scanners) {
-        this(new String[]{prefix}, scanners);
+        this((Object) prefix, scanners);
     }
 
     /**
-     * a convenient constructor for scanning within given package prefixes.
-     * <br>for example
+     * a convenient constructor for Reflections, where given {@code Object...} parameter types can be either:
+     * <ul>
+     *     <li>{@link String} - would add urls using {@link ClasspathHelper#forPackage(String, ClassLoader...)} ()}</li>
+     *     <li>{@link Class} - would add urls using {@link ClasspathHelper#forClass(Class, ClassLoader...)} </li>
+     *     <li>{@link ClassLoader} - would use this classloaders in order to find urls in {@link ClasspathHelper#forPackage(String, ClassLoader...)} and {@link ClasspathHelper#forClass(Class, ClassLoader...)}</li>
+     *     <li>{@link Scanner} - would use given scanner, overriding the default scanners</li>
+     *     <li>{@link URL} - would add the given url for scanning</li>
+     *     <li>{@link Object[]} - would use each element as above</li>
+     * </ul>
+     *
+     * use any parameter type in any order. this constructor uses instanceof on each param and instantiate a {@link ConfigurationBuilder} appropriately.
+     * if you prefer the usual statically typed constructor, don't use this, although it can be very useful.
+     *
+     * <br><br>for example:
      * <pre>
-     * Reflections reflections = new Reflections(new String[] {"my.package.prefix", "my.other.package.prefix"});
+     *     new Reflections("my.package", some.class, "another.package", myClassLoader, anotherClassLoader, additionalUrl);
+     *     //or
+     *     new Reflections(myUrl, someScanner, some.class);
      * </pre>
-     * <p>this actually create a {@link Configuration} with:
-     * <br> - urls that contain resources with prefixes {@code prefixes}
-     * <br> - filterInputsBy to include names starting with the given {@code prefixes}
-     * <br> - scanners set to the given {@code scanners}, otherwise defaults to {@link TypeAnnotationsScanner} and {@link SubTypesScanner}.
-     * @param prefixes string array of package prefixes, to be used with {@link ClasspathHelper#forPackage(String, ClassLoader...)} )}
-     * @param scanners optionally supply scanners, otherwise defaults to {@link TypeAnnotationsScanner} and {@link SubTypesScanner}
      */
-    public Reflections(final String[] prefixes, @Nullable final Scanner... scanners) {
-        this(new ConfigurationBuilder() {
-            {
-                for (String prefix : prefixes) { addUrls(ClasspathHelper.forPackage(prefix)); }
-
-                final FilterBuilder prefixFilter = new FilterBuilder();
-                for (String prefix : prefixes) { prefixFilter.include(FilterBuilder.prefix(prefix)); }
-                filterInputsBy(prefixFilter);
-
-                setScanners(!isEmpty(scanners) ? scanners : new Scanner[]{new TypeAnnotationsScanner(), new SubTypesScanner()});
-            }
-        });
-    }
-
-    /**
-     * a convenient constructor for scanning within given package prefixes and/or urls containing given classes.
-     * <p>given urlHints is an array of either String or Class elements, where Strings results in scanning package prefix
-     * and Class results in scanning url that contains that class, for example
-     * <pre>
-     *     new Reflections(new Object[] {"my.package", com.google.inject.Module.class, "javax.persistence"})
-     * </pre>
-     * would result in scanning packages 'my.package' and 'javax.persistence' and also the url that contains the class of com.google.inject.Module
-     * <p>this actually create a {@link Configuration} with:
-     * <br> - urls that contain resources with name {@code prefix} or that contains given classes
-     * <br> - acceptsInput where name starts with the given {@code prefix} or with the classes package name
-     * <br> - scanners set to the given {@code scanners}, otherwise defaults to {@link TypeAnnotationsScanner} and {@link SubTypesScanner}.
-     * @param urlHints is an array of either String or Class elements, where Strings results in scanning package prefix and Class results in scanning urls containing the class
-     * @param scanners optionally supply scanners, otherwise defaults to {@link TypeAnnotationsScanner} and {@link SubTypesScanner}
-     */
-    public Reflections(final Object[] urlHints, @Nullable final Scanner... scanners) {
-        this(new ConfigurationBuilder() {
-            {
-                final FilterBuilder prefixFilter = new FilterBuilder();
-
-                for (Object urlHint : urlHints) {
-                    if (urlHint instanceof String) {
-                        addUrls(ClasspathHelper.forPackage((String) urlHint));
-                        prefixFilter.include(FilterBuilder.prefix((String) urlHint));
-                    } else if (urlHint instanceof Class) {
-                        addUrls(ClasspathHelper.forClass((Class) urlHint));
-                        prefixFilter.includePackage(((Class) urlHint));
-                    }
-                }
-
-                filterInputsBy(prefixFilter);
-
-                setScanners(!isEmpty(scanners) ? scanners : new Scanner[]{new TypeAnnotationsScanner(), new SubTypesScanner()});
-            }
-        });
+    public Reflections(final Object... params) {
+        this(ConfigurationBuilder.buildFrom(params));
     }
 
     protected Reflections() {
@@ -230,10 +180,10 @@ public class Reflections extends ReflectionUtils {
                             futures.add(executorService.submit(new Runnable() {
                                 public void run() {
                                     scan(file);
-                                    scannedUrls.incrementAndGet();
                                 }
                             }));
                         }
+                        scannedUrls.incrementAndGet();
                     } catch (ReflectionsException e) {
                         if (log != null) log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
                     }
