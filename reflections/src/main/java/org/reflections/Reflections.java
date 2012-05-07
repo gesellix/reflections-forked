@@ -23,6 +23,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -126,13 +127,15 @@ public class Reflections extends ReflectionUtils {
      *
      * <br><br>for example:
      * <pre>
-     *     new Reflections("my.package", some.class, "another.package", myClassLoader, anotherClassLoader, additionalUrl);
+     *     new Reflections("my.package", classLoader);
      *     //or
-     *     new Reflections(myUrl, someScanner, some.class);
+     *     new Reflections("my.package", someScanner, anotherScanner, classLoader);
+     *     //or
+     *     new Reflections(myUrl, myOtherUrl);
      * </pre>
      */
     public Reflections(final Object... params) {
-        this(ConfigurationBuilder.buildFrom(params));
+        this(new ConfigurationBuilder(params));
     }
 
     protected Reflections() {
@@ -329,7 +332,7 @@ public class Reflections extends ReflectionUtils {
      */
     public <T> Set<Class<? extends T>> getSubTypesOf(final Class<T> type) {
         Set<String> subTypes = store.getSubTypesOf(type.getName());
-        return ImmutableSet.copyOf(ReflectionUtils.<T>forNames(subTypes));
+        return toClasses(subTypes);
     }
 
     /**
@@ -341,7 +344,7 @@ public class Reflections extends ReflectionUtils {
      */
     public Set<Class<?>> getTypesAnnotatedWith(final Class<? extends Annotation> annotation) {
         Set<String> typesAnnotatedWith = store.getTypesAnnotatedWith(annotation.getName());
-        return ImmutableSet.copyOf(forNames(typesAnnotatedWith));
+        return toClasses(typesAnnotatedWith);
     }
 
     /**
@@ -353,7 +356,7 @@ public class Reflections extends ReflectionUtils {
      */
     public Set<Class<?>> getTypesAnnotatedWith(final Class<? extends Annotation> annotation, boolean honorInherited) {
         Set<String> typesAnnotatedWith = store.getTypesAnnotatedWith(annotation.getName(), honorInherited);
-        return ImmutableSet.copyOf(forNames(typesAnnotatedWith));
+        return toClasses(typesAnnotatedWith);
     }
 
     /**
@@ -372,9 +375,9 @@ public class Reflections extends ReflectionUtils {
      */
     public Set<Class<?>> getTypesAnnotatedWith(final Annotation annotation, boolean honorInherited) {
         Set<String> types = store.getTypesAnnotatedWithDirectly(annotation.annotationType().getName());
-        Set<Class<?>> annotated = getAll(forNames(types), withAnnotation(annotation));
+        Set<Class<?>> annotated = getAll(toClasses(types), withAnnotation(annotation));
         Set<String> inherited = store.getInheritedSubTypes(names(annotated), annotation.annotationType().getName(), honorInherited);
-        return ImmutableSet.copyOf(forNames(inherited));
+        return toClasses(inherited);
     }
 
     /**
@@ -440,6 +443,10 @@ public class Reflections extends ReflectionUtils {
                 return pattern.matcher(input).matches();
             }
         });
+    }
+
+    private <T> HashSet<Class<? extends T>> toClasses(Set<String> names) {
+        return Sets.newHashSet(ReflectionUtils.<T>forNames(names, configuration.getClassLoaders()));
     }
 
     /** returns the store used for storing and querying the metadata */
