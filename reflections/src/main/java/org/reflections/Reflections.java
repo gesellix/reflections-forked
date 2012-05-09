@@ -85,7 +85,7 @@ public class Reflections extends ReflectionUtils {
      */
     public Reflections(final Configuration configuration) {
         this.configuration = configuration;
-        store = new Store();
+        store = new Store(configuration.getExecutorService() != null); //concurrent?
 
         if (configuration.getScanners() != null && !configuration.getScanners().isEmpty()) {
             //inject to scanners
@@ -140,7 +140,7 @@ public class Reflections extends ReflectionUtils {
 
     protected Reflections() {
         configuration = new ConfigurationBuilder();
-        store = new Store();
+        store = new Store(false);
     }
 
     //
@@ -159,7 +159,7 @@ public class Reflections extends ReflectionUtils {
         }
 
         long time = System.currentTimeMillis();
-        final AtomicInteger scannedUrls = new AtomicInteger();
+        int scannedUrls = 0;
         ExecutorService executorService = configuration.getExecutorService();
 
         if (executorService == null) {
@@ -168,7 +168,7 @@ public class Reflections extends ReflectionUtils {
                     for (final Vfs.File file : Vfs.fromURL(url).getFiles()) {
                         scan(file);
                     }
-                    scannedUrls.incrementAndGet();
+                    scannedUrls++;
                 } catch (ReflectionsException e) {
                     if (log != null) log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
                 }
@@ -186,7 +186,7 @@ public class Reflections extends ReflectionUtils {
                                 }
                             }));
                         }
-                        scannedUrls.incrementAndGet();
+                        scannedUrls++;
                     } catch (ReflectionsException e) {
                         if (log != null) log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
                     }
@@ -206,7 +206,7 @@ public class Reflections extends ReflectionUtils {
         Integer values = store.getValuesCount();
 
         if (log != null) log.info(format("Reflections took %d ms to scan %d urls, producing %d keys and %d values %s",
-                time, scannedUrls.get(), keys, values,
+                time, scannedUrls, keys, values,
                 executorService != null && executorService instanceof ThreadPoolExecutor ?
                         format("[using %d cores]", ((ThreadPoolExecutor) executorService).getMaximumPoolSize()) : ""));
     }
