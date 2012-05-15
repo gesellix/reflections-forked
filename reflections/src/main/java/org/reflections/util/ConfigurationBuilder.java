@@ -57,10 +57,10 @@ public class ConfigurationBuilder implements Configuration {
      * <ul>
      *     <li>{@link String} - would add urls using {@link ClasspathHelper#forPackage(String, ClassLoader...)} ()}</li>
      *     <li>{@link Class} - would add urls using {@link ClasspathHelper#forClass(Class, ClassLoader...)} </li>
-     *     <li>{@link ClassLoader} - would use this classloaders in order to find urls in {@link ClasspathHelper#forPackage(String, ClassLoader...)} and {@link ClasspathHelper#forClass(Class, ClassLoader...)}</li>
+     *     <li>{@link ClassLoader} - would use these classloaders in order to find urls in ClasspathHelper.forPackage(), ClasspathHelper.forClass() and for resolving types</li>
      *     <li>{@link Scanner} - would use given scanner, overriding the default scanners</li>
      *     <li>{@link URL} - would add the given url for scanning</li>
-     *     <li>{@link Object[]} - would use each element as above</li>
+     *     <li>{@code Object[]} - would use each element as above</li>
      * </ul>
      *
      * use any parameter type in any order. this constructor uses instanceof on each param and instantiate a {@link ConfigurationBuilder} appropriately.
@@ -87,6 +87,7 @@ public class ConfigurationBuilder implements Configuration {
 
         filterInputsBy(filter);
         if (!scanners.isEmpty()) { setScanners(scanners.toArray(new Scanner[]{})); }
+        if (!loaders.isEmpty()) { addClassLoaders(loaders); }
     }
 
     public Set<Scanner> getScanners() {
