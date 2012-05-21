@@ -135,7 +135,7 @@ public class Reflections extends ReflectionUtils {
      * </pre>
      */
     public Reflections(final Object... params) {
-        this(new ConfigurationBuilder(params));
+        this(ConfigurationBuilder.build(params));
     }
 
     protected Reflections() {
@@ -229,10 +229,9 @@ public class Reflections extends ReflectionUtils {
     /** collect saved Reflection xml resources and merge it into a Reflections instance
      * <p>by default, resources are collected from all urls that contains the package META-INF/reflections
      * and includes files matching the pattern .*-reflections.xml
-     * @param optionalSerializer - optionally supply one serializer instance. if not specified or null, {@link XmlSerializer} will be used
      * */
-    public static Reflections collect(@Nullable Serializer... optionalSerializer) {
-        return collect("META-INF/reflections", new FilterBuilder().include(".*-reflections.xml"), optionalSerializer);
+    public static Reflections collect() {
+        return collect("META-INF/reflections", new FilterBuilder().include(".*-reflections.xml"));
     }
 
     /**
@@ -245,17 +244,6 @@ public class Reflections extends ReflectionUtils {
      */
     public static Reflections collect(final String packagePrefix, final Predicate<String> resourceNameFilter, @Nullable Serializer... optionalSerializer) {
         Serializer serializer = optionalSerializer != null && optionalSerializer.length == 1 ? optionalSerializer[0] : new XmlSerializer();
-        return collect(packagePrefix, resourceNameFilter, serializer);
-    }
-
-    /**
-     * collect saved Reflections resources from all urls that contains the given packagePrefix and matches the given resourceNameFilter
-     * and de-serializes them using the serializer configured in the configuration
-     * <p>
-     * it is preferred to use a designated resource prefix (for example META-INF/reflections but not just META-INF),
-     * so that relevant urls could be found much faster
-     */
-    public static Reflections collect(final String packagePrefix, final Predicate<String> resourceNameFilter, final Serializer serializer) {
         final Reflections reflections = new Reflections();
 
         for (final Vfs.File file : Vfs.findFiles(ClasspathHelper.forPackage(packagePrefix), packagePrefix, resourceNameFilter)) {
@@ -263,8 +251,7 @@ public class Reflections extends ReflectionUtils {
             try {
                 inputStream = file.openInputStream();
                 reflections.merge(serializer.read(inputStream));
-                if (log != null) //noinspection ConstantConditions
-                    log.info("Reflections collected metadata from " + file + " using serializer " + serializer.getClass().getName());
+                if (log != null) log.info("Reflections collected metadata from " + file + " using serializer " + serializer.getClass().getName());
             } catch (IOException e) {
                 throw new ReflectionsException("could not merge " + file, e);
             } finally {
@@ -281,8 +268,7 @@ public class Reflections extends ReflectionUtils {
     public Reflections collect(final InputStream inputStream) {
         try {
             merge(configuration.getSerializer().read(inputStream));
-            if (log != null) //noinspection ConstantConditions
-                log.info("Reflections collected metadata from input stream using serializer " + configuration.getSerializer().getClass().getName());
+            if (log != null) log.info("Reflections collected metadata from input stream using serializer " + configuration.getSerializer().getClass().getName());
         } catch (Exception ex) {
             throw new ReflectionsException("could not merge input stream", ex);
         }

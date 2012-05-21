@@ -4,7 +4,7 @@
 
     <groupId>org.reflections</groupId>
     <artifactId>reflections-parent</artifactId>
-    <version>0.9.7.RC1</version>
+    <version>0.9.7</version>
     <packaging>pom</packaging>
 
     <name>Reflections</name>
@@ -68,14 +68,6 @@
                 <configuration>
                     <reportOutputDirectory>javadoc</reportOutputDirectory>
                 </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>jar</goal>
-                            <goal>javadoc</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
 
             <plugin>
