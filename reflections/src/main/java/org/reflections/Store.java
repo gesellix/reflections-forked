@@ -24,9 +24,7 @@ public class Store {
 	private final Map<String/*indexName*/, Multimap<String, String>> storeMap;
     private final transient boolean concurrent;
 
-    protected Store() {
-        this(false);
-    }
+    protected Store() { this(false); } //used via reflection
 
     protected Store(boolean concurrent) {
         this.concurrent = concurrent;

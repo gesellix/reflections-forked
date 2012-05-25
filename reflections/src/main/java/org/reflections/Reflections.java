@@ -23,6 +23,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -84,7 +85,7 @@ public class Reflections extends ReflectionUtils {
      */
     public Reflections(final Configuration configuration) {
         this.configuration = configuration;
-        store = new Store();
+        store = new Store(configuration.getExecutorService() != null); //concurrent?
 
         if (configuration.getScanners() != null && !configuration.getScanners().isEmpty()) {
             //inject to scanners
@@ -126,18 +127,20 @@ public class Reflections extends ReflectionUtils {
      *
      * <br><br>for example:
      * <pre>
-     *     new Reflections("my.package", some.class, "another.package", myClassLoader, anotherClassLoader, additionalUrl);
+     *     new Reflections("my.package", classLoader);
      *     //or
-     *     new Reflections(myUrl, someScanner, some.class);
+     *     new Reflections("my.package", someScanner, anotherScanner, classLoader);
+     *     //or
+     *     new Reflections(myUrl, myOtherUrl);
      * </pre>
      */
     public Reflections(final Object... params) {
-        this(ConfigurationBuilder.buildFrom(params));
+        this(ConfigurationBuilder.build(params));
     }
 
     protected Reflections() {
         configuration = new ConfigurationBuilder();
-        store = new Store();
+        store = new Store(false);
     }
 
     //
@@ -156,7 +159,7 @@ public class Reflections extends ReflectionUtils {
         }
 
         long time = System.currentTimeMillis();
-        final AtomicInteger scannedUrls = new AtomicInteger();
+        int scannedUrls = 0;
         ExecutorService executorService = configuration.getExecutorService();
 
         if (executorService == null) {
@@ -165,7 +168,7 @@ public class Reflections extends ReflectionUtils {
                     for (final Vfs.File file : Vfs.fromURL(url).getFiles()) {
                         scan(file);
                     }
-                    scannedUrls.incrementAndGet();
+                    scannedUrls++;
                 } catch (ReflectionsException e) {
                     if (log != null) log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
                 }
@@ -183,7 +186,7 @@ public class Reflections extends ReflectionUtils {
                                 }
                             }));
                         }
-                        scannedUrls.incrementAndGet();
+                        scannedUrls++;
                     } catch (ReflectionsException e) {
                         if (log != null) log.error("could not create Vfs.Dir from url. ignoring the exception and continuing", e);
                     }
@@ -203,7 +206,7 @@ public class Reflections extends ReflectionUtils {
         Integer values = store.getValuesCount();
 
         if (log != null) log.info(format("Reflections took %d ms to scan %d urls, producing %d keys and %d values %s",
-                time, scannedUrls.get(), keys, values,
+                time, scannedUrls, keys, values,
                 executorService != null && executorService instanceof ThreadPoolExecutor ?
                         format("[using %d cores]", ((ThreadPoolExecutor) executorService).getMaximumPoolSize()) : ""));
     }
@@ -226,10 +229,9 @@ public class Reflections extends ReflectionUtils {
     /** collect saved Reflection xml resources and merge it into a Reflections instance
      * <p>by default, resources are collected from all urls that contains the package META-INF/reflections
      * and includes files matching the pattern .*-reflections.xml
-     * @param optionalSerializer - optionally supply one serializer instance. if not specified or null, {@link XmlSerializer} will be used
      * */
-    public static Reflections collect(@Nullable Serializer... optionalSerializer) {
-        return collect("META-INF/reflections", new FilterBuilder().include(".*-reflections.xml"), optionalSerializer);
+    public static Reflections collect() {
+        return collect("META-INF/reflections", new FilterBuilder().include(".*-reflections.xml"));
     }
 
     /**
@@ -242,17 +244,6 @@ public class Reflections extends ReflectionUtils {
      */
     public static Reflections collect(final String packagePrefix, final Predicate<String> resourceNameFilter, @Nullable Serializer... optionalSerializer) {
         Serializer serializer = optionalSerializer != null && optionalSerializer.length == 1 ? optionalSerializer[0] : new XmlSerializer();
-        return collect(packagePrefix, resourceNameFilter, serializer);
-    }
-
-    /**
-     * collect saved Reflections resources from all urls that contains the given packagePrefix and matches the given resourceNameFilter
-     * and de-serializes them using the serializer configured in the configuration
-     * <p>
-     * it is preferred to use a designated resource prefix (for example META-INF/reflections but not just META-INF),
-     * so that relevant urls could be found much faster
-     */
-    public static Reflections collect(final String packagePrefix, final Predicate<String> resourceNameFilter, final Serializer serializer) {
         final Reflections reflections = new Reflections();
 
         for (final Vfs.File file : Vfs.findFiles(ClasspathHelper.forPackage(packagePrefix), packagePrefix, resourceNameFilter)) {
@@ -260,8 +251,7 @@ public class Reflections extends ReflectionUtils {
             try {
                 inputStream = file.openInputStream();
                 reflections.merge(serializer.read(inputStream));
-                if (log != null) //noinspection ConstantConditions
-                    log.info("Reflections collected metadata from " + file + " using serializer " + serializer.getClass().getName());
+                if (log != null) log.info("Reflections collected metadata from " + file + " using serializer " + serializer.getClass().getName());
             } catch (IOException e) {
                 throw new ReflectionsException("could not merge " + file, e);
             } finally {
@@ -278,8 +268,7 @@ public class Reflections extends ReflectionUtils {
     public Reflections collect(final InputStream inputStream) {
         try {
             merge(configuration.getSerializer().read(inputStream));
-            if (log != null) //noinspection ConstantConditions
-                log.info("Reflections collected metadata from input stream using serializer " + configuration.getSerializer().getClass().getName());
+            if (log != null) log.info("Reflections collected metadata from input stream using serializer " + configuration.getSerializer().getClass().getName());
         } catch (Exception ex) {
             throw new ReflectionsException("could not merge input stream", ex);
         }
@@ -329,7 +318,7 @@ public class Reflections extends ReflectionUtils {
      */
     public <T> Set<Class<? extends T>> getSubTypesOf(final Class<T> type) {
         Set<String> subTypes = store.getSubTypesOf(type.getName());
-        return ImmutableSet.copyOf(ReflectionUtils.<T>forNames(subTypes));
+        return toClasses(subTypes);
     }
 
     /**
@@ -341,7 +330,7 @@ public class Reflections extends ReflectionUtils {
      */
     public Set<Class<?>> getTypesAnnotatedWith(final Class<? extends Annotation> annotation) {
         Set<String> typesAnnotatedWith = store.getTypesAnnotatedWith(annotation.getName());
-        return ImmutableSet.copyOf(forNames(typesAnnotatedWith));
+        return toClasses(typesAnnotatedWith);
     }
 
     /**
@@ -353,7 +342,7 @@ public class Reflections extends ReflectionUtils {
      */
     public Set<Class<?>> getTypesAnnotatedWith(final Class<? extends Annotation> annotation, boolean honorInherited) {
         Set<String> typesAnnotatedWith = store.getTypesAnnotatedWith(annotation.getName(), honorInherited);
-        return ImmutableSet.copyOf(forNames(typesAnnotatedWith));
+        return toClasses(typesAnnotatedWith);
     }
 
     /**
@@ -372,9 +361,9 @@ public class Reflections extends ReflectionUtils {
      */
     public Set<Class<?>> getTypesAnnotatedWith(final Annotation annotation, boolean honorInherited) {
         Set<String> types = store.getTypesAnnotatedWithDirectly(annotation.annotationType().getName());
-        Set<Class<?>> annotated = getAll(forNames(types), withAnnotation(annotation));
+        Set<Class<?>> annotated = getAll(toClasses(types), withAnnotation(annotation));
         Set<String> inherited = store.getInheritedSubTypes(names(annotated), annotation.annotationType().getName(), honorInherited);
-        return ImmutableSet.copyOf(forNames(inherited));
+        return toClasses(inherited);
     }
 
     /**
@@ -440,6 +429,10 @@ public class Reflections extends ReflectionUtils {
                 return pattern.matcher(input).matches();
             }
         });
+    }
+
+    private <T> HashSet<Class<? extends T>> toClasses(Set<String> names) {
+        return Sets.newHashSet(ReflectionUtils.<T>forNames(names, configuration.getClassLoaders()));
     }
 
     /** returns the store used for storing and querying the metadata */

@@ -390,7 +390,7 @@ public abstract class ReflectionUtils {
 
             for (ClassLoader classLoader : ClasspathHelper.classLoaders(classLoaders)) {
                 try { return Class.forName(type, false, classLoader); }
-                catch (Exception e) { /*continue*/ }
+                catch (Throwable e) { /*continue*/ }
             }
 
             return null;

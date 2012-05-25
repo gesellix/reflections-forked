@@ -1,7 +1,6 @@
 package org.reflections.util;
 
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import com.google.common.collect.Lists;
 import com.google.common.collect.ObjectArrays;
 import com.google.common.collect.Sets;
@@ -16,9 +15,7 @@ import org.reflections.serializers.Serializer;
 import org.reflections.serializers.XmlSerializer;
 
 import java.net.URL;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -39,17 +36,67 @@ import static org.reflections.util.FilterBuilder.prefix;
  * {@link #executorService} is null,
  * {@link #serializer} is {@link org.reflections.serializers.XmlSerializer}
  */
-@SuppressWarnings({"RawUseOfParameterizedType"})
 public class ConfigurationBuilder implements Configuration {
-    private final Set<Scanner> scanners = Sets.<Scanner>newHashSet(new TypeAnnotationsScanner(), new SubTypesScanner());
-    private Set<URL> urls = Sets.newHashSet();
-    private MetadataAdapter metadataAdapter = new JavassistAdapter();
-    private Predicate<String> inputsFilter = Predicates.alwaysTrue();
-    private Serializer serializer;
+    private final Set<Scanner> scanners;
+    private Set<URL> urls;
+    /*lazy*/ private MetadataAdapter metadataAdapter;
+    /*@Nullable*/ private Predicate<String> inputsFilter;
+    /*lazy*/ private Serializer serializer;
     private ExecutorService executorService;
-    /*@Nullable*/ private ClassLoader[] classLoaders = null;
+    /*@Nullable*/ private ClassLoader[] classLoaders;
 
     public ConfigurationBuilder() {
+        scanners = Sets.<Scanner>newHashSet(new TypeAnnotationsScanner(), new SubTypesScanner());
+        urls = Sets.newHashSet();
+    }
+
+    /** constructs a {@link ConfigurationBuilder} using the given parameters, in a non statically typed way. that is, each element in {@code params} is
+     * guessed by it's type and populated into the configuration.
+     * <ul>
+     *     <li>{@link String} - would add urls using {@link ClasspathHelper#forPackage(String, ClassLoader...)} ()}</li>
+     *     <li>{@link Class} - would add urls using {@link ClasspathHelper#forClass(Class, ClassLoader...)} </li>
+     *     <li>{@link ClassLoader} - would use these classloaders in order to find urls in ClasspathHelper.forPackage(), ClasspathHelper.forClass() and for resolving types</li>
+     *     <li>{@link Scanner} - would use given scanner, overriding the default scanners</li>
+     *     <li>{@link URL} - would add the given url for scanning</li>
+     *     <li>{@code Object[]} - would use each element as above</li>
+     * </ul>
+     *
+     * use any parameter type in any order. this constructor uses instanceof on each param and instantiate a {@link ConfigurationBuilder} appropriately.
+     * */
+    public static ConfigurationBuilder build(final Object... params) {
+        ConfigurationBuilder builder = new ConfigurationBuilder();
+
+        //flatten
+        List<Object> parameters = Lists.newArrayList();
+        for (Object param : params) {
+            if (param != null) {
+                if (param.getClass().isArray()) { for (Object p : (Object[]) param) if (p != null) parameters.add(p); }
+                else if (param instanceof Iterable) { for (Object p : (Iterable) param) if (p != null) parameters.add(p); }
+                else parameters.add(param);
+            }
+        }
+
+        List<ClassLoader> loaders = Lists.newArrayList();
+        for (Object param : parameters) if (param instanceof ClassLoader) loaders.add((ClassLoader) param);
+
+        ClassLoader[] classLoaders = loaders.isEmpty() ? null : loaders.toArray(new ClassLoader[loaders.size()]);
+        FilterBuilder filter = new FilterBuilder();
+        List<Scanner> scanners = Lists.newArrayList();
+
+        for (Object param : parameters) {
+            if (param instanceof String) { builder.addUrls(ClasspathHelper.forPackage((String) param, classLoaders)); filter.include(prefix((String) param)); }
+            else if (param instanceof Class) { builder.addUrls(ClasspathHelper.forClass((Class) param, classLoaders)); filter.includePackage(((Class) param)); }
+            else if (param instanceof Scanner) { scanners.add((Scanner) param); }
+            else if (param instanceof URL) { builder.addUrls((URL) param); }
+            else if (param instanceof ClassLoader) { /* already taken care */ }
+            else if (Reflections.log != null) { Reflections.log.warn("could not use param " + param); }
+        }
+
+        builder.filterInputsBy(filter);
+        if (!scanners.isEmpty()) { builder.setScanners(scanners.toArray(new Scanner[scanners.size()])); }
+        if (!loaders.isEmpty()) { builder.addClassLoaders(loaders); }
+
+        return builder;
     }
 
     public Set<Scanner> getScanners() {
@@ -88,15 +135,6 @@ public class ConfigurationBuilder implements Configuration {
         return this;
 	}
 
-    /** set the urls to be scanned
-     * <p>use {@link org.reflections.util.ClasspathHelper} convenient methods to get the relevant urls
-     * */
-    public ConfigurationBuilder setUrls(final Collection<URL>... urlss) {
-        urls.clear();
-        addUrls(urlss);
-        return this;
-    }
-
     /** add urls to be scanned
      * <p>use {@link org.reflections.util.ClasspathHelper} convenient methods to get the relevant urls
      * */
@@ -113,16 +151,8 @@ public class ConfigurationBuilder implements Configuration {
         return this;
     }
 
-    /** add urls to be scanned
-     * <p>use {@link org.reflections.util.ClasspathHelper} convenient methods to get the relevant urls
-     * */
-    public ConfigurationBuilder addUrls(final Collection<URL>... urlss) {
-        for (Collection<URL> urls : urlss) { addUrls(urls); }
-        return this;
-    }
-
     public MetadataAdapter getMetadataAdapter() {
-        return metadataAdapter;
+        return metadataAdapter != null ? metadataAdapter : (metadataAdapter = new JavassistAdapter());
     }
 
     /** sets the metadata adapter used to fetch metadata from classes */
@@ -132,7 +162,7 @@ public class ConfigurationBuilder implements Configuration {
     }
 
     public boolean acceptsInput(String inputFqn) {
-        return inputsFilter.apply(inputFqn);
+        return inputsFilter == null || inputsFilter.apply(inputFqn);
     }
 
     /** sets the input filter for all resources to be scanned
@@ -166,10 +196,7 @@ public class ConfigurationBuilder implements Configuration {
     }
 
     public Serializer getSerializer() {
-        if (serializer == null) {
-            serializer = new XmlSerializer(); //lazily defaults to XmlSerializer
-        }
-        return serializer;
+        return serializer != null ? serializer : (serializer = new XmlSerializer()); //lazily defaults to XmlSerializer
     }
 
     /** sets the serializer used when issuing {@link org.reflections.Reflections#save} */
@@ -197,49 +224,5 @@ public class ConfigurationBuilder implements Configuration {
     /** add class loader, might be used for resolving methods/fields */
     public ConfigurationBuilder addClassLoaders(Collection<ClassLoader> classLoaders) {
         return addClassLoaders(classLoaders.toArray(new ClassLoader[classLoaders.size()]));
-    }
-
-    /** constructs a {@link ConfigurationBuilder} using the given parameters, in a non statically typed way. that is, each element in {@code params} is
-     * guessed by it's type and populated into the configuration.
-     * <ul>
-     *     <li>{@link String} - would add urls using {@link ClasspathHelper#forPackage(String, ClassLoader...)} ()}</li>
-     *     <li>{@link Class} - would add urls using {@link ClasspathHelper#forClass(Class, ClassLoader...)} </li>
-     *     <li>{@link ClassLoader} - would use this classloaders in order to find urls in {@link ClasspathHelper#forPackage(String, ClassLoader...)} and {@link ClasspathHelper#forClass(Class, ClassLoader...)}</li>
-     *     <li>{@link Scanner} - would use given scanner, overriding the default scanners</li>
-     *     <li>{@link URL} - would add the given url for scanning</li>
-     *     <li>{@link Object[]} - would use each element as above</li>
-     * </ul>
-     *
-     * use any parameter type in any order. this constructor uses instanceof on each param and instantiate a {@link ConfigurationBuilder} appropriately.
-     * */
-    public static Configuration buildFrom(final Object[] params) {
-        ConfigurationBuilder builder = new ConfigurationBuilder();
-        builder.init(params);
-        return builder;
-    }
-
-    private void init(Object[] params) {
-        //flatten
-        List<Object> parameters = Lists.newArrayList();
-        for (Object param : params) if (!(param instanceof Object[])) parameters.add(param); else for (Object p : (Object[]) param) parameters.add(p);
-
-        List<ClassLoader> loaders = Lists.newArrayList();
-        for (Object param : parameters) if (param instanceof ClassLoader) loaders.add((ClassLoader) param);
-        ClassLoader[] classLoaders = loaders.isEmpty() ? null : loaders.toArray(new ClassLoader[]{});
-
-        FilterBuilder filter = new FilterBuilder();
-        List<Scanner> scanners = Lists.newArrayList();
-
-        for (Object param : parameters) {
-            if (param instanceof String) { addUrls(ClasspathHelper.forPackage((String) param, classLoaders)); filter.include(prefix((String) param)); }
-            else if (param instanceof Class) { addUrls(ClasspathHelper.forClass((Class) param, classLoaders)); filter.includePackage(((Class) param)); }
-            else if (param instanceof Scanner) { scanners.add((Scanner) param); }
-            else if (param instanceof URL) { addUrls((URL) param); }
-            else if (param instanceof ClassLoader) { /* already taken care */ }
-            else { if (Reflections.log != null) Reflections.log.warn("could not use param " + param); }
-        }
-
-        filterInputsBy(filter);
-        if (!scanners.isEmpty()) { setScanners(scanners.toArray(new Scanner[]{})); }
     }
 }
