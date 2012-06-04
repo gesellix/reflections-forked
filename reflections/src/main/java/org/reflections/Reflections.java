@@ -1,7 +1,6 @@
 package org.reflections;
 
 import com.google.common.base.Predicate;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import org.reflections.scanners.Scanner;
@@ -23,13 +22,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import static java.lang.String.format;
@@ -318,7 +315,7 @@ public class Reflections extends ReflectionUtils {
      */
     public <T> Set<Class<? extends T>> getSubTypesOf(final Class<T> type) {
         Set<String> subTypes = store.getSubTypesOf(type.getName());
-        return toClasses(subTypes);
+        return this.<T>toClasses(subTypes);
     }
 
     /**
@@ -431,7 +428,7 @@ public class Reflections extends ReflectionUtils {
         });
     }
 
-    private <T> HashSet<Class<? extends T>> toClasses(Set<String> names) {
+    private <T> Set<Class<? extends T>> toClasses(Set<String> names) {
         return Sets.newHashSet(ReflectionUtils.<T>forNames(names, configuration.getClassLoaders()));
     }
 

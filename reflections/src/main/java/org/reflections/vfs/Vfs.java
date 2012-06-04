@@ -3,7 +3,6 @@ package org.reflections.vfs;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import org.jboss.vfs.VirtualFile;
 import org.reflections.Reflections;
 import org.reflections.ReflectionsException;
 import org.reflections.util.Utils;
@@ -229,31 +228,6 @@ public abstract class Vfs {
             public Dir createDir(final URL url) throws Exception {
                 return new SystemDir(getFile(url));
             }
-        },
-
-        vfs_jboss7 {
-            public boolean matches(URL url) {
-                return url.getProtocol().equals("vfs");
-            }
-
-            public Dir createDir(URL url) {
-                VirtualFile content;
-                try { content = (VirtualFile) url.openConnection().getContent(); }
-                catch (Throwable e) { throw new ReflectionsException("could not open url connection as VirtualFile [" + url + "]", e); }
-
-                Dir dir = null;
-                try { dir = createDir(new java.io.File(content.getPhysicalFile().getParentFile(), content.getName())); } catch (IOException e) { /*continue*/ }
-                if (dir == null) {
-                    try { dir = createDir(content.getPhysicalFile()); } catch (IOException e) { /*continue*/ }
-                }
-                return dir;
-            }
-
-            Dir createDir(java.io.File file) {
-                try { return file.exists() && file.canRead() ? file.isDirectory() ? new SystemDir(file) : new ZipDir(new JarFile(file)) : null; }
-                catch (IOException e) { e.printStackTrace(); }
-                return null;
-            }
-        },
+        }
     }
 }
